@@ -6,6 +6,7 @@ Handles loading, cleaning, chunking, and indexing documents into Pinecone.
 
 from pathlib import Path
 from typing import Optional
+from concurrent.futures import ProcessPoolExecutor
 
 from llama_index.core import (
     Document,
@@ -60,7 +61,7 @@ class DocumentIngestionPipeline:
         self.pinecone_index = self.pc.Index(settings.pinecone.index_name)
     
     def load_documents(self, source_dir: Optional[Path] = None) -> list[Document]:
-        """Load and clean documents from source directory."""
+        """Load and clean documents from source directory utilizing parallel processing."""
         directory = source_dir or settings.SOURCE_DIR
         
         if not directory.exists():
@@ -75,16 +76,29 @@ class DocumentIngestionPipeline:
         )
         raw_documents = reader.load_data()
         
-        # Clean HTML documents
-        documents = []
+        # Separate HTML and other documents
+        html_docs = []
+        other_docs = []
+        
         for doc in raw_documents:
             file_path = doc.metadata.get("file_path", "")
             if file_path.endswith((".html", ".htm")):
-                clean_text = clean_html_text(doc.text)
-                documents.append(Document(text=clean_text, metadata=doc.metadata))
+                html_docs.append(doc)
             else:
-                documents.append(doc)
+                other_docs.append(doc)
         
+        # Process HTML documents in parallel
+        processed_html_docs = []
+        if html_docs:
+            print(f"Processing {len(html_docs)} HTML documents in parallel...")
+            with ProcessPoolExecutor() as executor:
+                # We map only the text content to keep pickle payload small and simple
+                clean_texts = list(executor.map(clean_html_text, [d.text for d in html_docs]))
+            
+            for doc, clean_text in zip(html_docs, clean_texts):
+                processed_html_docs.append(Document(text=clean_text, metadata=doc.metadata))
+        
+        documents = processed_html_docs + other_docs
         print(f"Loaded {len(documents)} documents")
         return documents
     
