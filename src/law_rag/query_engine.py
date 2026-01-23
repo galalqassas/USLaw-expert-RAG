@@ -15,7 +15,7 @@ from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.llms.groq import Groq
 
-from src.config import settings
+from law_rag.config import settings
 
 
 class RAGQueryEngine:

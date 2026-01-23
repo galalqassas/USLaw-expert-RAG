@@ -1,36 +1,31 @@
-# ⚖️ US Copyright Law RAG Assistant
+# ⚖️ US Copyright Law RAG
 
-A high-performance RAG system for **US Code Title 17 (Copyrights)**, leveraging **Groq** for speed, **Pinecone** for serverless retrieval, and **LlamaIndex** for orchestration.
+A high-performance **Retrieval-Augmented Generation (RAG)** system built for querying **US Code Title 17 (Copyrights)**.
+
+Uses **Groq** for lightning-fast inference, **Pinecone** for scalable serverless retrieval, and **LlamaIndex** for robust orchestration.
 
 ---
-
-## 🚀 Features
-
-- **Instant Inference**: Powered by Groq's LPU (`openai/gpt-oss-120b`).
-- **Semantic Search**: Pinecone vector database with reliable indexing.
-- **Traceability**: Full JSON logging of queries, retrieved chunks, and metadata.
-- **Modern Stack**: Built on Python 3.12+ and managed by `uv`.
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph LR
-    User -->|Query| CLI
-    CLI -->|Search| Pinecone[(Pinecone)]
-    Pinecone -->|Context| Engine[LlamaIndex]
-    Engine -->|Prompt| Groq[Groq LPU]
-    Groq -->|Response| CLI
+    User((User)) --> Interface[CLI / API]
+    Interface --> Engine[LlamaIndex Engine]
+
+    Engine -->|Retrieve| Pinecone[(Pinecone)]
+    Engine -->|Generate| Groq[Groq LPU]
+
+    Docs[Documents] -.->|Embed| Ollama[Ollama]
+    Ollama -.->|Index| Pinecone
 ```
 
-## 🛠️ Tech Stack
+## 🚀 Features
 
-| Component      | Technology                               | Details                    |
-| :------------- | :--------------------------------------- | :------------------------- |
-| **LLM**        | [Groq](https://groq.com)                 | `openai/gpt-oss-120b`      |
-| **Vector DB**  | [Pinecone](https://pinecone.io)          | Serverless (AWS us-east-1) |
-| **Embeddings** | [Ollama](https://ollama.com)             | `embeddinggemma` (Local)   |
-| **Framework**  | [LlamaIndex](https://www.llamaindex.ai/) | Orchestration & RAG        |
-| **Manager**    | [uv](https://github.com/astral-sh/uv)    | Dependency Management      |
+- **⚡ Instant Inference**: Powered by Groq's LPU (`openai/gpt-oss-120b`).
+- **🔍 Semantic Search**: Pinecone vector database with reliable indexing.
+- **🌐 REST API**: Production-ready FastAPI interface.
+- **📊 Traceability**: Full JSON logging of queries, retrieved chunks, and timing.
 
 ## ⚡ Quick Start
 
@@ -38,19 +33,18 @@ graph LR
 
 - Python 3.11+
 - [uv](https://github.com/astral-sh/uv) (recommended)
-- [Docker Desktop](https://www.docker.com/)
-- API Keys: **Groq**, **Pinecone**
+- [Docker Desktop](https://www.docker.com/) for Ollama
 
-### 2. Start Ollama
+### 2. Setup
 
-Start Ollama with persistent storage using Docker Compose:
+Start Ollama and pull the embedding model:
 
 ```bash
 docker compose up -d
 docker exec ollama ollama pull embeddinggemma:latest
 ```
 
-### 2. Installation
+Install dependencies:
 
 ```bash
 git clone https://github.com/galalqassas/USLaw-expert-RAG.git
@@ -58,41 +52,62 @@ cd USLaw-expert-RAG
 uv sync
 ```
 
-### 3. Configuration
+### 3. Usage
 
-Create `.env` with your credentials:
+#### 🖥️ CLI Mode
 
-```ini
-GROQ_API_KEY=gsk_...
-PINECONE_API_KEY=pcsk_...
-PINECONE_INDEX_NAME=law-rag-index
-```
-
-### 4. Usage
-
-**Index Data (First Run)**
+**Interactive Chat**
 
 ```bash
-uv run python -m src.main --ingest
-```
-
-**Chat Interface**
-
-```bash
-uv run python -m src.main
+uv run python -m law_rag.main
 ```
 
 **Single Query**
 
 ```bash
-uv run python -m src.main -q "What is fair use?"
+uv run python -m law_rag.main -q "What is fair use?"
 ```
 
-## ⚙️ Configuration (`src/config.py`)
+**Ingest Data**
 
-| Setting               | Default               | Description         |
-| :-------------------- | :-------------------- | :------------------ |
-| `groq.model`          | `openai/gpt-oss-120b` | LLM Model ID        |
-| `groq.context_window` | `131072`              | 128k Context Window |
-| `chunking.chunk_size` | `1024`                | Indexing chunk size |
-| `similarity_top_k`    | `5`                   | Retrieval depth     |
+```bash
+uv run python -m law_rag.main --ingest
+```
+
+#### 🌐 API Server
+
+Start the server:
+
+```bash
+uv run uvicorn law_rag.api:app --reload
+```
+
+- **Swagger UI**: `http://127.0.0.1:8000/docs`
+- **Health Check**: `http://127.0.0.1:8000/health`
+
+#### 🧪 Testing
+
+Run the test suite:
+
+```bash
+uv run pytest tests/ -v
+```
+
+## ⚙️ Configuration
+
+Settings are managed in `src/law_rag/config.py` and `.env`.
+
+| Component | Setting               | Default               | Description         |
+| :-------- | :-------------------- | :-------------------- | :------------------ |
+| **LLM**   | `groq.model`          | `openai/gpt-oss-120b` | LLM Model ID        |
+| **LLM**   | `groq.context_window` | `131072`              | 128k Context Window |
+| **Index** | `chunking.chunk_size` | `1024`                | Indexing chunk size |
+| **RAG**   | `similarity_top_k`    | `5`                   | Retrieval depth     |
+
+## 🛠️ Tech Stack
+
+- **LLM**: [Groq](https://groq.com)
+- **Vector DB**: [Pinecone](https://pinecone.io)
+- **Embeddings**: [Ollama](https://ollama.com)
+- **Framework**: [LlamaIndex](https://www.llamaindex.ai/)
+- **API**: [FastAPI](https://fastapi.tiangolo.com/)

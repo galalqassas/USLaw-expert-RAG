@@ -7,8 +7,8 @@ Provides CLI interface for indexing and querying.
 import argparse
 import sys
 
-from src.ingestion import DocumentIngestionPipeline
-from src.query_engine import RAGQueryEngine
+from law_rag.ingestion import DocumentIngestionPipeline
+from law_rag.query_engine import RAGQueryEngine
 
 
 def ingest_documents(force: bool = False) -> None:

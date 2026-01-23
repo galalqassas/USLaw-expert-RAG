@@ -20,8 +20,8 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
 
-from src.config import settings
-from src.utils import clean_html_text
+from law_rag.config import settings
+from law_rag.utils import clean_html_text
 
 
 class DocumentIngestionPipeline:
