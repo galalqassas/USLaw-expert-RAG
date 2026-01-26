@@ -3,6 +3,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from law_rag.ingestion import DocumentIngestionPipeline
@@ -10,8 +11,12 @@ from law_rag.query_engine import RAGQueryEngine
 
 # --- Models ---
 
+class Message(BaseModel):
+    role: str
+    content: str
+
 class QueryRequest(BaseModel):
-    text: str = Field(..., min_length=1)
+    messages: list[Message]
 
 class QueryResponse(BaseModel):
     answer: str
@@ -49,6 +54,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For dev; restrict in prod
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- Endpoints ---
 
 @app.get("/health")
@@ -58,7 +71,14 @@ async def health():
 
 @app.post("/query", response_model=QueryResponse)
 async def query(req: QueryRequest):
-    result = _get_engine().query_with_sources(req.text)
+    if not req.messages:
+        raise HTTPException(400, "No messages provided")
+    
+    last_message = req.messages[-1].content
+    history = [msg.model_dump() for msg in req.messages[:-1]]
+    
+    result = _get_engine().chat(last_message, history)
+    # result keys from chat(): "response", "sources"
     return QueryResponse(answer=result["response"], sources=result["sources"])
 
 @app.post("/ingest")

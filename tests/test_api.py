@@ -12,12 +12,14 @@ from fastapi.testclient import TestClient
 def mock_engine():
     """Create a mock RAGQueryEngine."""
     engine = MagicMock()
-    engine.query_with_sources.return_value = {
+    mock_response = {
         "response": "Fair use allows limited use of copyrighted material.",
         "sources": [
             {"rank": 1, "score": 0.95, "file_path": "section107.html", "text": "..."},
         ],
     }
+    engine.query_with_sources.return_value = mock_response
+    engine.chat.return_value = mock_response
     return engine
 
 
@@ -48,18 +50,20 @@ class TestHealthEndpoint:
 
 class TestQueryEndpoint:
     def test_query_success(self, client):
-        response = client.post("/query", json={"text": "What is fair use?"})
+        response = client.post("/query", json={
+            "messages": [{"role": "user", "content": "What is fair use?"}]
+        })
         assert response.status_code == 200
         data = response.json()
         assert "answer" in data
         assert "sources" in data
         assert len(data["sources"]) > 0
 
-    def test_query_empty_text_rejected(self, client):
-        response = client.post("/query", json={"text": ""})
-        assert response.status_code == 422  # Validation error
+    def test_query_empty_messages_rejected(self, client):
+        response = client.post("/query", json={"messages": []})
+        assert response.status_code == 400
 
-    def test_query_missing_text_rejected(self, client):
+    def test_query_missing_messages_rejected(self, client):
         response = client.post("/query", json={})
         assert response.status_code == 422
 

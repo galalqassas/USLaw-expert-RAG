@@ -18,7 +18,7 @@ dependencies = [
     "pypdf>=4.0.0",
     # Utils
     "python-dotenv>=1.0.0",
-    "llama-index-embeddings-huggingface>=0.6.1",
+    "pydantic>=2.0.0",
     # HTML Processing
     "beautifulsoup4>=4.12.0",
     "lxml>=5.0.0",
@@ -37,5 +37,4 @@ packages = ["src/law_rag"]
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
 ]

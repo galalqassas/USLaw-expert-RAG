@@ -2,16 +2,17 @@
 
 A high-performance **Retrieval-Augmented Generation (RAG)** system built for querying **US Code Title 17 (Copyrights)**.
 
-Uses **Groq** for lightning-fast inference, **Pinecone** for scalable serverless retrieval, and **LlamaIndex** for robust orchestration.
-
----
+Now updated with a modern **React/Next.js UI**, context-aware chat, and real-time citing.
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph LR
-    User((User)) --> Interface[CLI / API]
-    Interface --> Engine[LlamaIndex Engine]
+    User((User)) -->|Browser| Frontend[Next.js App]
+    User -->|CLI/HTTP| Interface[FastAPI]
+
+    Frontend -->|Query w/ History| Interface
+    Interface --> Engine[RAG Engine]
 
     Engine -->|Retrieve| Pinecone[(Pinecone)]
     Engine -->|Generate| Groq[Groq LPU]
@@ -23,91 +24,83 @@ graph LR
 ## 🚀 Features
 
 - **⚡ Instant Inference**: Powered by Groq's LPU (`openai/gpt-oss-120b`).
+- **💬 Chat Interface**: Modern Web UI with history, dark mode, and file icons.
 - **🔍 Semantic Search**: Pinecone vector database with reliable indexing.
-- **🌐 REST API**: Production-ready FastAPI interface.
+- **🌐 REST API**: Context-aware `POST /query` endpoint.
 - **📊 Traceability**: Full JSON logging of queries, retrieved chunks, and timing.
 
 ## ⚡ Quick Start
 
 ### 1. Prerequisites
 
-- Python 3.11+
+- Python 3.11+ & Node.js 18+
 - [uv](https://github.com/astral-sh/uv) (recommended)
-- [Docker Desktop](https://www.docker.com/) for Ollama
+- [Docker Desktop](https://www.docker.com/) (Required for local embeddings)
 
-### 2. Setup
+### 2. Start Services (3 Terminals)
 
-Start Ollama and pull the embedding model:
+**Terminal 1: AI Engine (Ollama)**
 
 ```bash
-docker compose up -d
-docker exec ollama ollama pull embeddinggemma:latest
+# Start Docker container
+docker start ollama
+# OR if first run: docker compose up -d
 ```
 
-Install dependencies:
+**Terminal 2: API Backend**
 
 ```bash
-git clone https://github.com/galalqassas/USLaw-expert-RAG.git
-cd USLaw-expert-RAG
+# Install Python dependencies and run server
 uv sync
+uv run uvicorn src.law_rag.api:app --reload --port 8000
 ```
 
-### 3. Usage
+**Terminal 3: Frontend UI**
 
-#### 🖥️ CLI Mode
+```bash
+# Install Node dependencies and run dev server
+cd frontend
+npm install
+npm run dev
+```
+
+Visit **http://localhost:3000** (or 3001/3002) to use the application.
+
+### 4. CLI Usage
 
 **Interactive Chat**
 
 ```bash
-uv run python -m law_rag.main
+uv run python -m src.law_rag.main
 ```
 
-**Single Query**
+**Ingest Data** (Required first run)
 
 ```bash
-uv run python -m law_rag.main -q "What is fair use?"
+uv run python -m src.law_rag.main --ingest
 ```
 
-**Ingest Data**
+## 🌐 API Reference
 
-```bash
-uv run python -m law_rag.main --ingest
-```
+### POST `/query`
 
-#### 🌐 API Server
+Query the RAG system with chat history.
 
-Start the server:
-
-```bash
-uv run uvicorn law_rag.api:app --reload
-```
-
-- **Swagger UI**: `http://127.0.0.1:8000/docs`
-- **Health Check**: `http://127.0.0.1:8000/health`
-
-#### 🧪 Testing
-
-Run the test suite:
-
-```bash
-uv run pytest tests/ -v
-```
+- **Swagger UI**: `http://localhost:8000/docs`
+- **Health Check**: `http://localhost:8000/health`
 
 ## ⚙️ Configuration
 
 Settings are managed in `src/law_rag/config.py` and `.env`.
 
-| Component | Setting               | Default               | Description         |
-| :-------- | :-------------------- | :-------------------- | :------------------ |
-| **LLM**   | `groq.model`          | `openai/gpt-oss-120b` | LLM Model ID        |
-| **LLM**   | `groq.context_window` | `131072`              | 128k Context Window |
-| **Index** | `chunking.chunk_size` | `1024`                | Indexing chunk size |
-| **RAG**   | `similarity_top_k`    | `5`                   | Retrieval depth     |
+| Component |Default                | Description         |
+| :-------- | :-------------------- | :------------------ |
+| **LLM**   | `openai/gpt-oss-120b` | LLM Model ID        |
+| **Index** | `1024`                | Indexing chunk size |
+| **RAG**   | `5`                   | Retrieval depth     |
 
 ## 🛠️ Tech Stack
 
-- **LLM**: [Groq](https://groq.com)
-- **Vector DB**: [Pinecone](https://pinecone.io)
-- **Embeddings**: [Ollama](https://ollama.com)
-- **Framework**: [LlamaIndex](https://www.llamaindex.ai/)
-- **API**: [FastAPI](https://fastapi.tiangolo.com/)
+- **Frontend**: Next.js 16, Tailwind CSS, Lucide
+- **Backend**: FastAPI, LlamaIndex
+- **AI**: Groq (LLM), Pinecone (Vector DB), Ollama (Embeddings)

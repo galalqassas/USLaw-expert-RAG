@@ -15,6 +15,10 @@ from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.llms.groq import Groq
 
+from llama_index.core.llms import ChatMessage, MessageRole
+from llama_index.core.chat_engine import CondensePlusContextChatEngine
+from llama_index.core.memory import ChatMemoryBuffer
+
 from law_rag.config import settings
 
 
@@ -48,6 +52,20 @@ class RAGQueryEngine:
         self.synthesizer = get_response_synthesizer(
             llm=self.llm,
             response_mode=settings.response_mode,
+        )
+
+        # Initialize base chat engine (we'll inject history per request)
+        self.chat_engine = self.index.as_chat_engine(
+            chat_mode="condense_plus_context",
+            llm=self.llm,
+            context_prompt=(
+                "You are a helpful assistant for US Copyright Law questions.\n"
+                "Here are the relevant documents for the context:\n"
+                "{context_str}\n"
+                "\nInstruction: Use the previous chat history, or the context above, to interact and help the user."
+            ),
+            verbose=True,
+            similarity_top_k=settings.similarity_top_k,
         )
     
     def _log_query(self, question: str, chunks: list[dict], response: str, timing: dict) -> None:
@@ -136,6 +154,34 @@ class RAGQueryEngine:
         
         return response_text
     
+    
+    def chat(self, message: str, history: list[dict]) -> dict:
+        """Chat with the RAG system using history.
+        
+        For stateless REST API, we embed conversation history into the query
+        rather than relying on chat engine memory management.
+        """
+        # Build context from history
+        if history:
+            history_text = "\n".join(
+                f"{msg['role'].upper()}: {msg['content']}" for msg in history
+            )
+            augmented_query = (
+                f"Given the following conversation history:\n{history_text}\n\n"
+                f"Now answer the user's follow-up question: {message}"
+            )
+        else:
+            augmented_query = message
+        
+        # Use standard retrieval + synthesis
+        nodes = self.retriever.retrieve(augmented_query)
+        response = self.synthesizer.synthesize(augmented_query, nodes=nodes)
+        
+        return {
+            "response": str(response),
+            "sources": self._format_chunks(nodes),
+        }
+
     def query_with_sources(self, question: str) -> dict:
         """Query and return response with source information."""
         # Reuse internal logic if needed, but for now this is cleaner as a standard retrieval
