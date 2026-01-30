@@ -212,6 +212,35 @@ class RAGQueryEngine:
             "sources": self._format_chunks(nodes),
         }
 
+    def stream_chat(self, message: str, history: list[dict]):
+        """Stream chat response token by token.
+        
+        Args:
+            message: The user's current message.
+            history: Previous messages as list of {"role": str, "content": str}.
+            
+        Yields:
+            str: Text chunks as they are generated.
+        """
+        # Convert history to LlamaIndex ChatMessage format
+        chat_history = [
+            ChatMessage(
+                role=MessageRole.USER if msg["role"] == "user" else MessageRole.ASSISTANT,
+                content=msg["content"],
+            )
+            for msg in history
+        ]
+        
+        # Use chat engine with streaming enabled
+        streaming_response = self.chat_engine.stream_chat(
+            message, 
+            chat_history=chat_history,
+        )
+        
+        # Yield tokens as they arrive
+        for token in streaming_response.response_gen:
+            yield token
+
     def query_with_sources(self, question: str) -> dict:
         """Query and return response with source information."""
         # Reuse internal logic if needed, but for now this is cleaner as a standard retrieval

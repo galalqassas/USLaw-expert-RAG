@@ -13,6 +13,13 @@ def mock_engine():
         "response": f"Mock: {msg}",
         "sources": [{"rank": 1, "score": 0.9, "file_path": "doc.html", "text": "..."}],
     }
+    
+    # Mock stream_chat to yield tokens
+    def mock_stream_chat(msg, hist=None):
+        for token in f"Streaming response for: {msg}".split():
+            yield token + " "
+    
+    engine.stream_chat.side_effect = mock_stream_chat
     return engine
 
 

@@ -30,12 +30,6 @@ describe('Header', () => {
     expect(mockToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('renders settings button', () => {
-    render(<Header darkMode={false} onToggleDarkMode={mockToggle} />);
-    
-    expect(screen.getByTestId('settings-button')).toBeInTheDocument();
-  });
-
   it('renders new chat button when onNewChat is provided', () => {
     const mockNewChat = jest.fn();
     render(<Header darkMode={false} onToggleDarkMode={mockToggle} onNewChat={mockNewChat} />);
@@ -51,6 +45,5 @@ describe('Header', () => {
     render(<Header darkMode={false} onToggleDarkMode={mockToggle} />);
     
     expect(screen.getByLabelText('Toggle dark mode')).toBeInTheDocument();
-    expect(screen.getByLabelText('Settings')).toBeInTheDocument();
   });
 });

@@ -76,11 +76,13 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  uv run python -m src.main                    # Interactive mode
-  uv run python -m src.main --ingest           # Index documents
-  uv run python -m src.main --ingest --force   # Force re-index
-  uv run python -m src.main -q "What is fair use?"  # Single query
-  uv run python -m src.main --evaluate         # Run evaluation suite
+  uv run python -m law_rag.main                    # Interactive mode
+  uv run python -m law_rag.main --ingest           # Index documents
+  uv run python -m law_rag.main --ingest --force   # Force re-index
+  uv run python -m law_rag.main -q "What is fair use?"  # Single query
+  uv run python -m law_rag.main --evaluate         # Run evaluation suite
+  uv run python -m law_rag.main --serve            # Start API server
+  uv run python -m law_rag.main --serve --port 8080  # Custom port
         """,
     )
     
@@ -108,6 +110,19 @@ Examples:
         help="Run the RAG evaluation suite",
     )
     
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Start the FastAPI server",
+    )
+    
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for the API server (default: 8000)",
+    )
+    
     args = parser.parse_args()
     
     try:
@@ -118,6 +133,10 @@ Examples:
         elif args.evaluate:
             from law_rag.evaluate import run_evaluation
             run_evaluation()
+        elif args.serve:
+            import uvicorn
+            print(f"🚀 Starting API server on http://localhost:{args.port}")
+            uvicorn.run("law_rag.api:app", host="0.0.0.0", port=args.port, reload=False)
         else:
             interactive_query()
     except ValueError as e:

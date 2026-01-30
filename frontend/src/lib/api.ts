@@ -67,7 +67,7 @@ export async function sendQuery(messages: Message[]): Promise<QueryResult> {
     });
   } catch {
     throw new ApiError(
-      'Cannot connect to the server. Please ensure the backend is running.',
+      'Cannot connect to the server.',
       undefined,
       true
     );

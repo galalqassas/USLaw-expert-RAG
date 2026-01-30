@@ -36,3 +36,35 @@ class TestIngestEndpoint:
         r = client.post("/ingest", json={})
         assert r.status_code == 200
         assert "message" in r.json()
+
+
+class TestChatStreamEndpoint:
+    """Tests for the /chat streaming endpoint."""
+
+    def test_chat_stream_success(self, client):
+        """Test successful streaming response."""
+        r = client.post("/chat", json={"messages": [{"role": "user", "content": "test"}]})
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "text/plain; charset=utf-8"
+        # Check we got some streamed content
+        assert len(r.text) > 0
+
+    def test_chat_stream_with_history(self, client):
+        """Test streaming with conversation history."""
+        r = client.post("/chat", json={"messages": [
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "q2"},
+        ]})
+        assert r.status_code == 200
+
+    def test_chat_stream_empty_messages_rejected(self, client):
+        """Test that empty messages are rejected."""
+        r = client.post("/chat", json={"messages": []})
+        assert r.status_code == 400
+
+    def test_chat_stream_invalid_format_rejected(self, client):
+        """Test that invalid request format is rejected."""
+        r = client.post("/chat", json={})
+        assert r.status_code == 422
+

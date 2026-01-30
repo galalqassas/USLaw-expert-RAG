@@ -1,6 +1,6 @@
 'use client';
 
-import { Sun, Moon, Settings, PlusCircle } from 'lucide-react';
+import { Sun, Moon, PlusCircle } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
 
 interface HeaderProps {
@@ -39,13 +39,6 @@ export function Header({ darkMode, onToggleDarkMode, onNewChat }: HeaderProps) {
           ) : (
             <Moon className="w-5 h-5 text-foreground" />
           )}
-        </button>
-        <button 
-          className="p-2 rounded-lg hover:bg-surface transition-colors"
-          aria-label="Settings"
-          data-testid="settings-button"
-        >
-          <Settings className="w-5 h-5 text-secondary-text" />
         </button>
       </div>
     </header>

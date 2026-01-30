@@ -78,11 +78,4 @@ describe('ChatInput', () => {
     expect(input).toBeDisabled();
     expect(sendButton).toBeDisabled();
   });
-
-  it('renders attach button', () => {
-    render(<ChatInput onSend={mockOnSend} />);
-    
-    const attachButton = screen.getByTestId('attach-button');
-    expect(attachButton).toBeInTheDocument();
-  });
 });

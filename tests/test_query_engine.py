@@ -134,3 +134,36 @@ class TestRAGQueryEngine:
         assert "sources" in result
         assert len(result["sources"]) == 1
         assert result["sources"][0]["file_path"] == "source.html"
+
+    def test_stream_chat_yields_tokens(self, engine, mock_index):
+        """Test stream_chat yields tokens as a generator."""
+        # Mock the chat engine's stream_chat response
+        mock_streaming_response = MagicMock()
+        mock_streaming_response.response_gen = iter(["Hello ", "world ", "!"])
+        mock_index.as_chat_engine.return_value.stream_chat.return_value = mock_streaming_response
+        engine.chat_engine = mock_index.as_chat_engine.return_value
+
+        tokens = list(engine.stream_chat("test message", history=[]))
+
+        assert tokens == ["Hello ", "world ", "!"]
+
+    def test_stream_chat_with_history(self, engine, mock_index):
+        """Test stream_chat handles conversation history."""
+        mock_streaming_response = MagicMock()
+        mock_streaming_response.response_gen = iter(["Response"])
+        mock_index.as_chat_engine.return_value.stream_chat.return_value = mock_streaming_response
+        engine.chat_engine = mock_index.as_chat_engine.return_value
+
+        history = [
+            {"role": "user", "content": "First question"},
+            {"role": "assistant", "content": "First answer"},
+        ]
+
+        list(engine.stream_chat("Follow up", history=history))
+
+        # Verify stream_chat was called with correct history
+        call_args = engine.chat_engine.stream_chat.call_args
+        assert call_args[0][0] == "Follow up"
+        chat_history = call_args.kwargs.get("chat_history") or call_args[1].get("chat_history")
+        assert len(chat_history) == 2
+
