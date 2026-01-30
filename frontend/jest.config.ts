@@ -13,6 +13,9 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-markdown|rehype-.*|remark-.*|@ai-sdk/.*|ai)/)',
+  ],
 };
 
 export default createJestConfig(config);

@@ -6,9 +6,10 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.bridge.pydantic import PrivateAttr
 from llama_index.core.callbacks import CallbackManager
 
+
 class LightweightGeminiEmbedding(BaseEmbedding):
     """Lightweight Gemini Embedding class using httpx directly."""
-    
+
     _api_key: str = PrivateAttr()
     _model_name: str = PrivateAttr()
     _api_base: str = PrivateAttr()
@@ -43,13 +44,13 @@ class LightweightGeminiEmbedding(BaseEmbedding):
 
     def _embed_text(self, text: str, task_type: str | None = None) -> List[float]:
         url = f"{self._api_base}/{self._model_name}:embedContent?key={self._api_key}"
-        
+
         json_data = {
             "content": {"parts": [{"text": text}]},
             "model": self._model_name,
         }
         if task_type:
-             json_data["taskType"] = task_type
+            json_data["taskType"] = task_type
 
         with httpx.Client() as client:
             resp = client.post(url, json=json_data, timeout=30.0)
@@ -57,15 +58,17 @@ class LightweightGeminiEmbedding(BaseEmbedding):
             data = resp.json()
             return data["embedding"]["values"]
 
-    async def _aembed_text(self, text: str, task_type: str | None = None) -> List[float]:
+    async def _aembed_text(
+        self, text: str, task_type: str | None = None
+    ) -> List[float]:
         url = f"{self._api_base}/{self._model_name}:embedContent?key={self._api_key}"
-        
+
         json_data = {
             "content": {"parts": [{"text": text}]},
             "model": self._model_name,
         }
         if task_type:
-             json_data["taskType"] = task_type
+            json_data["taskType"] = task_type
 
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, json=json_data, timeout=30.0)

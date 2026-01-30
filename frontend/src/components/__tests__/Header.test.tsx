@@ -2,37 +2,44 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '@/components/Header';
 import { APP_NAME } from '@/lib/constants';
 
-describe('Header', () => {
-  const mockToggle = jest.fn();
+// Mock next-themes
+const mockSetTheme = jest.fn();
+jest.mock('next-themes', () => ({
+  useTheme: () => ({
+    theme: 'light',
+    setTheme: mockSetTheme,
+  }),
+}));
 
+describe('Header', () => {
   beforeEach(() => {
-    mockToggle.mockClear();
+    mockSetTheme.mockClear();
   });
 
   it('renders app title from constants', () => {
-    render(<Header darkMode={false} onToggleDarkMode={mockToggle} />);
+    render(<Header />);
     
     const title = screen.getByTestId('app-title');
     expect(title).toHaveTextContent(APP_NAME);
   });
 
   it('renders dark mode toggle button', () => {
-    render(<Header darkMode={false} onToggleDarkMode={mockToggle} />);
+    render(<Header />);
     
     expect(screen.getByTestId('dark-mode-toggle')).toBeInTheDocument();
   });
 
-  it('calls onToggleDarkMode when toggle is clicked', () => {
-    render(<Header darkMode={false} onToggleDarkMode={mockToggle} />);
+  it('calls setTheme when toggle is clicked', () => {
+    render(<Header />);
     
     fireEvent.click(screen.getByTestId('dark-mode-toggle'));
     
-    expect(mockToggle).toHaveBeenCalledTimes(1);
+    expect(mockSetTheme).toHaveBeenCalledWith('dark');
   });
 
   it('renders new chat button when onNewChat is provided', () => {
     const mockNewChat = jest.fn();
-    render(<Header darkMode={false} onToggleDarkMode={mockToggle} onNewChat={mockNewChat} />);
+    render(<Header onNewChat={mockNewChat} />);
     
     const newChatBtn = screen.getByTitle('Start a new chat');
     expect(newChatBtn).toBeInTheDocument();
@@ -42,7 +49,7 @@ describe('Header', () => {
   });
 
   it('has correct accessibility labels', () => {
-    render(<Header darkMode={false} onToggleDarkMode={mockToggle} />);
+    render(<Header />);
     
     expect(screen.getByLabelText('Toggle dark mode')).toBeInTheDocument();
   });

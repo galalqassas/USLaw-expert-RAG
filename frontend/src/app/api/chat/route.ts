@@ -2,21 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'edge'; // Optional: Use Edge Runtime for lower latency if compatible
 
+// --- Types ---
+
+interface MessagePart {
+  text?: string;
+}
+
+interface IncomingMessage {
+  role: string;
+  content: string | MessagePart[];
+  parts?: MessagePart[];
+}
+
+interface RequestBody {
+  messages?: IncomingMessage[];
+}
+
+// --- Route ---
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: RequestBody = await req.json();
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     
     // Sanitize messages to ensure compatibility with backend Pydantic model
     // The backend expects: { messages: [{ role: str, content: str }] }
-    const messages = body.messages?.map((m: any) => {
+    const messages = body.messages?.map((m) => {
       let content = '';
       if (typeof m.content === 'string') {
         content = m.content;
       } else if (Array.isArray(m.content)) {
-        content = m.content.map((p: any) => p.text || '').join('');
+        content = m.content.map((p) => p.text || '').join('');
       } else if (Array.isArray(m.parts)) {
-        content = m.parts.map((p: any) => p.text || '').join('');
+        content = m.parts.map((p) => p.text || '').join('');
       } else if (m.content) {
         content = String(m.content);
       }

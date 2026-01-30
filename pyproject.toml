@@ -46,4 +46,6 @@ dev = [
     "pandas>=2.3.3",
     "llama-index-readers-file>=0.3.0",
     "pypdf>=4.0.0",
+    "ruff>=0.14.14",
+    "mypy>=1.19.1",
 ]

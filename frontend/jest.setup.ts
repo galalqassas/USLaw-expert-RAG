@@ -14,3 +14,12 @@ jest.mock('lucide-react', () => ({
   File: () => React.createElement('div', { 'data-testid': 'icon-file' }),
   Globe: () => React.createElement('div', { 'data-testid': 'icon-globe' }),
 }));
+
+// Mock global fetch
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    json: () => Promise.resolve({}),
+    text: () => Promise.resolve(''),
+    ok: true,
+  } as Response)
+);

@@ -8,6 +8,7 @@ export function useDarkMode() {
   useEffect(() => {
     // Check system preference on mount
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setIsDark(prefersDark);
     if (prefersDark) {
       document.documentElement.classList.add('dark');

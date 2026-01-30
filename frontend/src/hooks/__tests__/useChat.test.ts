@@ -1,35 +1,25 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useChat } from '@/hooks/useChat';
 
-// Mock the Vercel AI SDK
-const mockSendMessage = jest.fn();
-const mockSetMessages = jest.fn();
-
-jest.mock('@ai-sdk/react', () => ({
-  useChat: jest.fn(() => ({
-    messages: [],
-    sendMessage: mockSendMessage,
-    status: 'ready',
-    error: null,
-    setMessages: mockSetMessages,
-  })),
-}));
-
-jest.mock('ai', () => ({
-  DefaultChatTransport: jest.fn().mockImplementation(() => ({})),
-}));
-
-jest.mock('@/lib/api', () => ({
-  sendQuery: jest.fn().mockResolvedValue({
-    answer: 'Test answer',
-    chunks: [],
-    metrics: { retrievalTimeMs: 100, synthesisTimeMs: 200 },
-  }),
-}));
+// Mock global fetch
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 describe('useChat', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockFetch.mockClear();
+    // Default mock implementation for fetch
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => ({
+          read: jest.fn()
+            .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('0:"Hello"\n') })
+            .mockResolvedValueOnce({ done: true }),
+        }),
+      },
+    });
   });
 
   it('initializes with empty state', () => {
@@ -42,60 +32,48 @@ describe('useChat', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('has send and reset functions', () => {
+  it('sends a message and updates state', async () => {
     const { result } = renderHook(() => useChat());
 
-    expect(typeof result.current.send).toBe('function');
-    expect(typeof result.current.reset).toBe('function');
-  });
-
-  it('calls sendMessage when send() is called with content', () => {
-    const { result } = renderHook(() => useChat());
-
-    act(() => {
-      result.current.send('Hello');
+    await act(async () => {
+      result.current.send('Hello world');
     });
 
-    expect(mockSendMessage).toHaveBeenCalledWith({ text: 'Hello' });
+    // Check loading state (it might be false by now if the stream finished quickly in the mock)
+    // But we can check if fetch was called
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"content":"Hello world"'),
+    }));
   });
 
-  it('does not call sendMessage for empty content', () => {
+  it('updates messages with user input', async () => {
     const { result } = renderHook(() => useChat());
 
-    act(() => {
-      result.current.send('');
+    await act(async () => {
+      result.current.send('User question');
     });
 
-    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(result.current.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'user', content: 'User question' }),
+      expect.objectContaining({ role: 'assistant' }),
+    ]));
   });
 
-  it('does not call sendMessage for whitespace-only content', () => {
+  it('resets state correctly', async () => {
     const { result } = renderHook(() => useChat());
 
-    act(() => {
-      result.current.send('   ');
+    // Send a message first to change state
+    await act(async () => {
+      result.current.send('Test');
     });
 
-    expect(mockSendMessage).not.toHaveBeenCalled();
-  });
-
-  it('calls setMessages with empty array when reset() is called', () => {
-    const { result } = renderHook(() => useChat());
-
-    act(() => {
+    await act(async () => {
       result.current.reset();
     });
 
-    expect(mockSetMessages).toHaveBeenCalledWith([]);
-  });
-
-  it('resets chunks and metrics on reset()', () => {
-    const { result } = renderHook(() => useChat());
-
-    act(() => {
-      result.current.reset();
-    });
-
+    expect(result.current.messages).toEqual([]);
     expect(result.current.chunks).toEqual([]);
     expect(result.current.metrics).toBeNull();
   });

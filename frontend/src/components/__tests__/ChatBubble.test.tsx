@@ -2,6 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { ChatBubble } from '@/components/ChatBubble';
 import { Message } from '@/types';
 
+// Mock react-markdown and remark-gfm to avoid ESM issues
+jest.mock('react-markdown', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => <div data-testid="markdown">{children}</div>,
+}));
+
+jest.mock('remark-gfm', () => ({
+  __esModule: true,
+  default: () => {},
+}));
+
 describe('ChatBubble', () => {
   const userMessage: Message = {
     id: 'user-1',

@@ -1,5 +1,5 @@
 import { Message } from '@/types';
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 

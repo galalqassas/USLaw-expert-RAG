@@ -19,14 +19,14 @@ describe('MetricsBadges', () => {
     render(<MetricsBadges metrics={mockMetrics} />);
     
     const retrievalTime = screen.getByTestId('retrieval-time');
-    expect(retrievalTime).toHaveTextContent(`${mockMetrics.retrievalTimeMs}ms`);
+    expect(retrievalTime).toHaveTextContent(`${(mockMetrics.retrievalTimeMs / 1000).toFixed(2)} sec`);
   });
 
   it('displays synthesis time correctly', () => {
     render(<MetricsBadges metrics={mockMetrics} />);
     
     const synthesisTime = screen.getByTestId('synthesis-time');
-    expect(synthesisTime).toHaveTextContent(`${mockMetrics.synthesisTimeMs}ms`);
+    expect(synthesisTime).toHaveTextContent(`${(mockMetrics.synthesisTimeMs / 1000).toFixed(2)} sec`);
   });
 
   it('displays correct labels from constants', () => {
@@ -44,7 +44,7 @@ describe('MetricsBadges', () => {
     
     render(<MetricsBadges metrics={fastMetrics} />);
     
-    expect(screen.getByTestId('retrieval-time')).toHaveTextContent('50ms');
-    expect(screen.getByTestId('synthesis-time')).toHaveTextContent('200ms');
+    expect(screen.getByTestId('retrieval-time')).toHaveTextContent('0.05 sec');
+    expect(screen.getByTestId('synthesis-time')).toHaveTextContent('0.20 sec');
   });
 });

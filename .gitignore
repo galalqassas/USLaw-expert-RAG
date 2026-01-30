@@ -36,3 +36,16 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Frontend / Node.js
+node_modules/
+.next/
+out/
+.vercel/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+next-env.d.ts

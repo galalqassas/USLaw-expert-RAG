@@ -1,10 +1,20 @@
-name: CI
+name: Backend CI
 
 on:
   push:
     branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/backend.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/backend.yml"
 
 jobs:
   test:
@@ -15,6 +25,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.11
@@ -22,8 +34,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
+      - name: Lint with Ruff
+        run: |
+          uv run ruff check .
+
       - name: Run tests
         env:
           GROQ_API_KEY: test-mock-key
           PINECONE_API_KEY: test-mock-key
+          GOOGLE_API_KEY: test-mock-key
         run: uv run pytest tests/ -v --tb=short

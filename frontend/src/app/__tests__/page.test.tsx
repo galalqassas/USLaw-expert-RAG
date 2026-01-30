@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Home from '@/app/page';
 
 // Mock the hooks
@@ -12,10 +12,19 @@ jest.mock('@/hooks', () => ({
     send: jest.fn(),
     reset: jest.fn(),
   }),
-  useDarkMode: () => ({
-    isDark: false,
-    toggle: jest.fn(),
+}));
+
+// Mock next-themes
+jest.mock('next-themes', () => ({
+  useTheme: () => ({
+    theme: 'light',
+    setTheme: jest.fn(),
   }),
+}));
+
+// Mock ChatBubble to avoid ESM issues with react-markdown
+jest.mock('@/components/ChatBubble', () => ({
+  ChatBubble: () => <div data-testid="chat-bubble-mock">ChatBubble</div>,
 }));
 
 describe('Home Page', () => {

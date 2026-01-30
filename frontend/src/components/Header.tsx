@@ -1,15 +1,21 @@
-'use client';
-
 import { Sun, Moon, PlusCircle } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 import { APP_NAME } from '@/lib/constants';
 
 interface HeaderProps {
-  darkMode: boolean;
-  onToggleDarkMode: () => void;
   onNewChat?: () => void;
 }
 
-export function Header({ darkMode, onToggleDarkMode, onNewChat }: HeaderProps) {
+export function Header({ onNewChat }: HeaderProps) {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setMounted(true);
+  }, []);
+
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b border-border bg-background">
       <div className="flex items-center gap-4">
@@ -29,16 +35,16 @@ export function Header({ darkMode, onToggleDarkMode, onNewChat }: HeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         <button
-          onClick={onToggleDarkMode}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="p-2 rounded-lg hover:bg-surface transition-colors"
           aria-label="Toggle dark mode"
           data-testid="dark-mode-toggle"
         >
-          {darkMode ? (
+          {mounted && (theme === 'dark' ? (
             <Sun className="w-5 h-5 text-foreground" />
           ) : (
             <Moon className="w-5 h-5 text-foreground" />
-          )}
+          ))}
         </button>
       </div>
     </header>

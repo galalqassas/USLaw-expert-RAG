@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RetrievalCard } from '@/components/RetrievalCard';
 import { RetrievedChunk } from '@/types';
-import { UI_TEXT, RELEVANCE_THRESHOLDS } from '@/lib/constants';
+import { UI_TEXT } from '@/lib/constants';
 
 describe('RetrievalCard', () => {
   const mockChunk: RetrievedChunk = {

@@ -12,16 +12,23 @@ class TestHealthEndpoint:
 
 class TestQueryEndpoint:
     def test_query_success(self, client):
-        r = client.post("/query", json={"messages": [{"role": "user", "content": "test"}]})
+        r = client.post(
+            "/query", json={"messages": [{"role": "user", "content": "test"}]}
+        )
         assert r.status_code == 200
         assert "answer" in r.json() and "sources" in r.json()
 
     def test_query_with_history(self, client):
-        r = client.post("/query", json={"messages": [
-            {"role": "user", "content": "q1"},
-            {"role": "assistant", "content": "a1"},
-            {"role": "user", "content": "q2"},
-        ]})
+        r = client.post(
+            "/query",
+            json={
+                "messages": [
+                    {"role": "user", "content": "q1"},
+                    {"role": "assistant", "content": "a1"},
+                    {"role": "user", "content": "q2"},
+                ]
+            },
+        )
         assert r.status_code == 200
 
     def test_query_empty_messages_rejected(self, client):
@@ -43,7 +50,9 @@ class TestChatStreamEndpoint:
 
     def test_chat_stream_success(self, client):
         """Test successful streaming response."""
-        r = client.post("/chat", json={"messages": [{"role": "user", "content": "test"}]})
+        r = client.post(
+            "/chat", json={"messages": [{"role": "user", "content": "test"}]}
+        )
         assert r.status_code == 200
         assert r.headers["content-type"] == "text/plain; charset=utf-8"
         # Check we got some streamed content
@@ -51,11 +60,16 @@ class TestChatStreamEndpoint:
 
     def test_chat_stream_with_history(self, client):
         """Test streaming with conversation history."""
-        r = client.post("/chat", json={"messages": [
-            {"role": "user", "content": "q1"},
-            {"role": "assistant", "content": "a1"},
-            {"role": "user", "content": "q2"},
-        ]})
+        r = client.post(
+            "/chat",
+            json={
+                "messages": [
+                    {"role": "user", "content": "q1"},
+                    {"role": "assistant", "content": "a1"},
+                    {"role": "user", "content": "q2"},
+                ]
+            },
+        )
         assert r.status_code == 200
 
     def test_chat_stream_empty_messages_rejected(self, client):
@@ -67,4 +81,3 @@ class TestChatStreamEndpoint:
         """Test that invalid request format is rejected."""
         r = client.post("/chat", json={})
         assert r.status_code == 422
-

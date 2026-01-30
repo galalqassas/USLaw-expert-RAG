@@ -17,8 +17,8 @@ graph LR
     Engine -->|Retrieve| Pinecone[(Pinecone)]
     Engine -->|Generate| Groq[Groq LPU]
 
-    Docs[Documents] -.->|Embed| Ollama[Ollama]
-    Ollama -.->|Index| Pinecone
+    Docs[Documents] -.->|Embed| Gemini[Gemini]
+    Gemini -.->|Index| Pinecone
 ```
 
 ## 🚀 Features
@@ -26,7 +26,7 @@ graph LR
 - **⚡ Instant Inference**: Powered by Groq's LPU (`openai/gpt-oss-120b`).
 - **💬 Chat Interface**: Modern Web UI with history, dark mode, and file icons.
 - **🔍 Semantic Search**: Pinecone vector database with reliable indexing.
-- **🌐 REST API**: Context-aware `POST /query` endpoint.
+- **🌐 REST API**: Context-aware `POST /chat` endpoint.
 - **📊 Traceability**: Full JSON logging of queries, retrieved chunks, and timing.
 
 ## ⚡ Quick Start
@@ -35,70 +35,62 @@ graph LR
 
 - Python 3.11+ & Node.js 18+
 - [uv](https://github.com/astral-sh/uv) (recommended)
-- [Docker Desktop](https://www.docker.com/) (Required for local embeddings)
+- [pnpm](https://pnpm.io/) (recommended for frontend)
 
-### 2. Start Services (3 Terminals)
+### 2. Start Services (2 Terminals)
 
-**Terminal 1: AI Engine (Ollama)**
-
-```bash
-# Start Docker container
-docker start ollama
-# OR if first run: docker compose up -d
-```
-
-**Terminal 2: API Backend**
+**Terminal 1: API Backend**
 
 ```bash
 # Install Python dependencies and run server
 uv sync
-uv run uvicorn src.law_rag.api:app --reload --port 8000
+uv run python -m law_rag.main --serve
 ```
 
-**Terminal 3: Frontend UI**
+**Terminal 2: Frontend UI**
 
 ```bash
 # Install Node dependencies and run dev server
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
-Visit **http://localhost:3000** (or 3001/3002) to use the application.
+Visit **http://localhost:3000** to use the application.
 
-### 4. CLI Usage
+### 3. CLI Usage
 
 **Interactive Chat**
 
 ```bash
-uv run python -m src.law_rag.main
+uv run python -m law_rag.main
 ```
 
 **Run Evaluation**
 
 ```bash
-uv run python -m src.law_rag.main --evaluate
+uv run python -m law_rag.main --evaluate
 ```
 
 **Single Query**
 
 ```bash
-uv run python -m src.law_rag.main -q "What is fair use?"
+uv run python -m law_rag.main -q "What is fair use?"
 ```
 
 **Ingest Data** (Required first run)
 
 ```bash
-uv run python -m src.law_rag.main --ingest
+uv run python -m law_rag.main --ingest
 # Force re-index:
-uv run python -m src.law_rag.main --ingest --force
+uv run python -m law_rag.main --ingest --force
 ```
 
 ## 🌐 API Reference
 
-### POST `/query`
+### POST `/chat`
 
-Query the RAG system with chat history.
+Streaming chat endpoint.
 
 - **Swagger UI**: `http://localhost:8000/docs`
 - **Health Check**: `http://localhost:8000/health`
@@ -117,4 +109,4 @@ Settings are managed in `src/law_rag/config.py` and `.env`.
 
 - **Frontend**: Next.js 16, Tailwind CSS, Lucide
 - **Backend**: FastAPI, LlamaIndex
-- **AI**: Groq (LLM), Pinecone (Vector DB), Ollama (Embeddings)
+- **AI**: Groq (LLM), Pinecone (Vector DB), Gemini (Embeddings)

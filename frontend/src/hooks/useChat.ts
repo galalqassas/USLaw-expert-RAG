@@ -1,20 +1,16 @@
 'use client';
 
 /**
- * Custom useChat hook with Vercel AI SDK streaming support.
- * 
- * Wraps the Vercel AI SDK's useChat hook to provide:
- * - Streaming text responses from the backend
- * - Conversation history management
- * - Compatible interface with existing components
- * - Retrieved chunks and metrics (fetched separately after streaming)
+ * useChat - Custom hook for streaming chat with RAG sources.
+ * Handles Vercel AI SDK Data Stream Protocol:
+ *   - `0:` text delta events (streamed to UI)
+ *   - `2:` data events (sources + retrieval metrics)
  */
 
-import { useChat as useVercelChat } from '@ai-sdk/react';
-import { TextStreamChatTransport } from 'ai';
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Message, RetrievedChunk, MetricsData } from '@/types';
-import { sendQuery } from '@/lib/api';
+import { useState, useCallback, useRef } from 'react';
+import { Message, RetrievedChunk, MetricsData, FileType } from '@/types';
+
+// --- Types ---
 
 interface UseChatReturn {
   messages: Message[];
@@ -26,107 +22,136 @@ interface UseChatReturn {
   reset: () => void;
 }
 
+interface BackendSource {
+  rank: number;
+  score: number | null;
+  file_path: string;
+  text: string;
+}
+
+// --- Helpers ---
+
+const generateId = (): string =>
+  `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const getFileType = (path: string): FileType =>
+  path.endsWith('.pdf') ? 'pdf' : path.endsWith('.docx') || path.endsWith('.doc') ? 'docx' : 'web';
+
+const mapSources = (sources: BackendSource[]): RetrievedChunk[] =>
+  sources.map((s, i) => ({
+    id: `chunk-${i}-${Date.now()}`,
+    title: s.file_path.split(/[/\\]/).pop() || 'Unknown',
+    type: getFileType(s.file_path),
+    snippet: s.text,
+    relevance: s.score ? Math.round(s.score * 100) : 0,
+    sourceUrl: s.file_path,
+  }));
+
+// --- Hook ---
+
 export function useChat(): UseChatReturn {
-  // Retrieval data (fetched after streaming completes)
+  const [messages, setMessages] = useState<Message[]>([]);
   const [chunks, setChunks] = useState<RetrievedChunk[]>([]);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
-  
-  // Track the last processed message count to detect new completions
-  const lastProcessedCount = useRef(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Use TextStreamChatTransport for plain text streaming from our backend
-  const transport = useMemo(
-    () => new TextStreamChatTransport({ api: '/api/chat' }),
-    []
-  );
+  const abortRef = useRef<AbortController | null>(null);
+  const startTimeRef = useRef(0);
+  const retrievalMsRef = useRef(0);
 
-  // Vercel AI SDK hook for streaming
-  const {
-    messages: rawMessages,
-    sendMessage,
-    status,
-    error,
-    setMessages,
-  } = useVercelChat({ transport });
+  const send = useCallback(async (content: string) => {
+    if (!content.trim() || isLoading) return;
 
-  const isLoading = status === 'streaming' || status === 'submitted';
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
-  // Transform messages to our format
-  // AI SDK v6 uses 'parts' array instead of 'content' string
-  const messages: Message[] = rawMessages.map((m, i) => {
-    // Extract text content from parts or fall back to content field
-    let content = '';
-    if (m.parts && Array.isArray(m.parts)) {
-      content = m.parts
-        .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-        .map(part => part.text)
-        .join('');
-    } else if (typeof (m as unknown as { content?: string }).content === 'string') {
-      content = (m as unknown as { content: string }).content;
-    }
+    setError(null);
+    setChunks([]);
+    setMetrics(null);
+    setIsLoading(true);
+    startTimeRef.current = Date.now();
+    retrievalMsRef.current = 0;
 
-    return {
-      id: m.id || `msg-${i}`,
-      role: m.role as 'user' | 'assistant',
-      content,
-    };
-  });
+    const userMsg: Message = { id: generateId(), role: 'user', content };
+    const assistantId = generateId();
+    const assistantMsg: Message = { id: assistantId, role: 'assistant', content: '' };
 
-  // Fetch sources after a response completes
-  useEffect(() => {
-    const messageCount = messages.length;
-    const lastMessage = messages[messageCount - 1];
-    
-    // Only fetch sources when:
-    // 1. Not loading (streaming complete)
-    // 2. New messages since last check
-    // 3. Last message is from assistant
-    if (
-      !isLoading &&
-      messageCount > lastProcessedCount.current &&
-      lastMessage?.role === 'assistant' &&
-      lastMessage?.content
-    ) {
-      lastProcessedCount.current = messageCount;
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
-      // Fetch sources using the existing /query endpoint
-      sendQuery(messages)
-        .then((result) => {
-          setChunks(result.chunks);
-          setMetrics(result.metrics);
-        })
-        .catch((err) => {
-          console.error('Failed to fetch sources:', err);
-        });
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })),
+        }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${await res.text()}`);
+      if (!res.body) throw new Error('No response body');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const updateContent = (token: string) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + token } : m))
+        );
+      };
+
+      const processLine = (line: string) => {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx === -1) return;
+
+        const type = line.slice(0, colonIdx);
+        const payload = line.slice(colonIdx + 1);
+
+        try {
+          if (type === '0') {
+            updateContent(JSON.parse(payload));
+          } else if (type === '2') {
+            const data = JSON.parse(payload);
+            const sources = Array.isArray(data) ? data : data.sources || [];
+            if (data.retrieval_time) {
+              retrievalMsRef.current = Math.round(data.retrieval_time * 1000);
+              setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: 0 });
+            }
+            setChunks(mapSources(sources));
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        lines.forEach((l) => l.trim() && processLine(l));
+      }
+      if (buffer.trim()) processLine(buffer);
+
+      const synthesisMs = Math.max(0, Date.now() - startTimeRef.current - retrievalMsRef.current);
+      setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: synthesisMs });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
     }
   }, [messages, isLoading]);
 
-  // Send a message
-  const send = useCallback(
-    (content: string) => {
-      if (!content.trim()) return;
-      
-      // AI SDK v6 uses sendMessage with text property
-      sendMessage({ text: content });
-    },
-    [sendMessage]
-  );
-
-  // Reset conversation
   const reset = useCallback(() => {
+    abortRef.current?.abort();
     setMessages([]);
     setChunks([]);
     setMetrics(null);
-    lastProcessedCount.current = 0;
-  }, [setMessages]);
+    setError(null);
+    setIsLoading(false);
+  }, []);
 
-  return {
-    messages,
-    chunks,
-    metrics,
-    isLoading,
-    error: error?.message || null,
-    send,
-    reset,
-  };
+  return { messages, chunks, metrics, isLoading, error, send, reset };
 }

@@ -1,43 +1,16 @@
 'use client';
 
-import { useChat, useDarkMode } from '@/hooks';
-import { Header, ChatBubble, ChatInput, RetrievalCard, MetricsBadges } from '@/components';
+import { useChat } from '@/hooks';
+import { Header, ChatBubble, ChatInput, RetrievalCard, MetricsBadges, TypingIndicator, EmptyState } from '@/components';
 import { UI_TEXT } from '@/lib/constants';
-
-// --- Loading Indicator ---
-function TypingIndicator() {
-  return (
-    <div className="flex justify-start">
-      <div className="bg-surface text-foreground border border-border rounded-2xl rounded-bl-md px-4 py-3">
-        <div className="flex space-x-1 h-3 items-center">
-          <div className="w-2 h-2 bg-secondary-text/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-          <div className="w-2 h-2 bg-secondary-text/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-          <div className="w-2 h-2 bg-secondary-text/40 rounded-full animate-bounce" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Empty State ---
-function EmptyState() {
-  return (
-    <div className="h-full flex items-center justify-center text-secondary-text">
-      <p>Ask a question about US Copyright Law to get started.</p>
-    </div>
-  );
-}
 
 // --- Main Page ---
 export default function Home() {
-  const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const { messages, chunks, metrics, isLoading, send, reset } = useChat();
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDark ? 'dark' : ''}`}>
+    <div className="min-h-screen flex flex-col">
       <Header
-        darkMode={isDark}
-        onToggleDarkMode={toggleDarkMode}
         onNewChat={reset}
       />
 
@@ -46,9 +19,11 @@ export default function Home() {
         <section className="flex-1 flex flex-col bg-background">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.length === 0 && <EmptyState />}
-            {messages.map((msg) => (
-              <ChatBubble key={msg.id} message={msg} />
-            ))}
+            {messages.map((msg) => {
+              // Don't render empty assistant messages (prevent duplicate loading bubble)
+              if (msg.role === 'assistant' && !msg.content) return null;
+              return <ChatBubble key={msg.id} message={msg} />;
+            })}
             {isLoading && <TypingIndicator />}
           </div>
           <ChatInput onSend={send} disabled={isLoading} />
