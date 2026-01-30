@@ -12,8 +12,10 @@ from pathlib import Path
 
 from llama_index.core import Settings as LlamaSettings, VectorStoreIndex
 from llama_index.core.response_synthesizers import get_response_synthesizer
+from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.llms.groq import Groq
+from llama_index.llms.openai import OpenAI
+from llama_index.llms.openai.utils import ALL_AVAILABLE_MODELS, CHAT_MODELS
 
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.core.chat_engine import CondensePlusContextChatEngine
@@ -30,17 +32,29 @@ class RAGQueryEngine:
         settings.validate()
         self.index = index
         self.logs_dir = settings.BASE_DIR / "logs"
-        self.logs_dir.mkdir(exist_ok=True)
+        self._enable_file_logging = True
+        try:
+            self.logs_dir.mkdir(exist_ok=True)
+        except OSError:
+            # Likely read-only filesystem (Vercel), disable file logging
+            print("⚠️ Read-only filesystem detected. File logging disabled.")
+            self._enable_file_logging = False
+
         self._setup_components()
     
     def _setup_components(self) -> None:
         """Configure LLM, retriever, and synthesizer."""
-        self.llm = Groq(
+        # Hack: Register Groq model as a valid OpenAI model to bypass validation
+        ALL_AVAILABLE_MODELS[settings.groq.model] = settings.groq.context_window
+        CHAT_MODELS[settings.groq.model] = settings.groq.context_window
+
+        self.llm = OpenAI(
             model=settings.groq.model,
             api_key=settings.groq.api_key,
+            api_base="https://api.groq.com/openai/v1",  # Groq OpenAI-compatible endpoint
             temperature=settings.groq.temperature,
             max_tokens=settings.groq.max_tokens,
-            context_window=settings.groq.context_window,
+            # context_window=settings.groq.context_window, # OpenAI class manages this largely auto, or we pass additional_kwargs if needed
         )
         LlamaSettings.llm = self.llm
         
@@ -70,6 +84,9 @@ class RAGQueryEngine:
     
     def _log_query(self, question: str, chunks: list[dict], response: str, timing: dict) -> None:
         """Log query data to JSON file (runs in background thread)."""
+        if not self._enable_file_logging:
+            return
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_file = self.logs_dir / f"query_{timestamp}.json"
         

@@ -20,7 +20,8 @@ class GroqConfig:
     """Groq LLM configuration."""
     
     api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
-    model: str = "openai/gpt-oss-120b"
+    google_api_key: str = field(default_factory=lambda: os.getenv("GOOGLE_API_KEY", ""))
+    model: str = "openai/gpt-oss-120b" # User requested model
     temperature: float = 0.1
     max_tokens: int = 4096
     context_window: int = 131072  # Llama 4 supports 128k context
@@ -28,9 +29,12 @@ class GroqConfig:
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingConfig:
-    """Ollama embedding configuration."""
+    """Embedding configuration."""
     
-    model: str = "embeddinggemma:latest"
+    provider: str = field(default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "ollama"))
+    
+    model: str = "models/text-embedding-004"  # Default for Gemini
+    # For Ollama: "embeddinggemma"
     base_url: str = field(
         default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     )

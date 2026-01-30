@@ -25,7 +25,7 @@ class MockEmbedding(BaseEmbedding):
 def mock_dependencies():
     """Mock all external dependencies for DocumentIngestionPipeline."""
     with patch("law_rag.ingestion.Pinecone") as mock_pc, \
-         patch("law_rag.ingestion.OllamaEmbedding", return_value=MockEmbedding()), \
+         patch("law_rag.ingestion.LightweightGeminiEmbedding", return_value=MockEmbedding()), \
          patch("law_rag.ingestion.settings") as mock_settings:
         # Configure mock settings
         mock_settings.pinecone.api_key = "test-key"
@@ -84,7 +84,7 @@ class TestDocumentIngestionPipeline:
         test_file = tmp_path / "test.txt"
         test_file.write_text("Test content")
 
-        with patch("law_rag.ingestion.SimpleDirectoryReader") as mock_reader:
+        with patch("llama_index.core.readers.SimpleDirectoryReader") as mock_reader:
             mock_doc = MagicMock()
             mock_doc.text = "Test content"
             mock_doc.metadata = {"file_path": str(test_file)}

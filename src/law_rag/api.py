@@ -1,4 +1,5 @@
 """FastAPI application for the US Copyright Law RAG system."""
+import os
 
 from contextlib import asynccontextmanager
 
@@ -52,12 +53,14 @@ app = FastAPI(
     title="US Copyright Law RAG API",
     version="1.0.0",
     lifespan=lifespan,
+    # Vercel listens on /api, so we need to tell FastAPI to strip that prefix
+    root_path="/api" if os.getenv("VERCEL") else ""
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev; restrict in prod
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

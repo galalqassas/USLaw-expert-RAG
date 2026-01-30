@@ -5,17 +5,17 @@ description = "RAG system for US Code Title 17 using LlamaIndex, Groq, and Pinec
 requires-python = ">=3.11"
 dependencies = [
     # Core LlamaIndex
-    "llama-index>=0.12.0",
-    # Groq LLM
-    "llama-index-llms-groq>=0.3.0",
+    "llama-index-core>=0.12.0",
+    # Groq LLM (via OpenAI compatible interface)
+    "llama-index-llms-openai>=0.1.0",
     # Ollama Embeddings (local)
-    "llama-index-embeddings-ollama>=0.5.0",
+    # "llama-index-embeddings-ollama>=0.5.0",
     # Pinecone Vector Store
     "llama-index-vector-stores-pinecone>=0.4.0",
     "pinecone>=5.0.0",
-    # Document Readers
-    "llama-index-readers-file>=0.3.0",
-    "pypdf>=4.0.0",
+    # Document Readers (Moved to dev for lighter runtime)
+    # "llama-index-readers-file>=0.3.0",
+    # "pypdf>=4.0.0",
     # Utils
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
@@ -24,11 +24,10 @@ dependencies = [
     "lxml>=5.0.0",
     "fastapi>=0.128.0",
     "uvicorn>=0.40.0",
-    "ragas>=0.4.3",
-    "datasets>=4.5.0",
-    "pandas>=2.3.3",
-    "langchain-groq>=1.1.1",
-    "langchain-community>=0.4.1",
+
+    # "langchain-groq>=1.1.1",
+    # "langchain-community>=0.4.1",
+    # "llama-index-embeddings-gemini>=0.3.0",
 ]
 
 [build-system]
@@ -42,4 +41,9 @@ packages = ["src/law_rag"]
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.2",
+    "ragas>=0.4.3",
+    "datasets>=4.5.0",
+    "pandas>=2.3.3",
+    "llama-index-readers-file>=0.3.0",
+    "pypdf>=4.0.0",
 ]

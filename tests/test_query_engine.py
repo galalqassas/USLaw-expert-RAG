@@ -10,7 +10,7 @@ import pytest
 def mock_dependencies():
     """Mock all external dependencies for RAGQueryEngine."""
     with patch("law_rag.query_engine.settings") as mock_settings, \
-         patch("law_rag.query_engine.Groq") as mock_groq, \
+         patch("law_rag.query_engine.OpenAI") as mock_openai, \
          patch("law_rag.query_engine.LlamaSettings"), \
          patch("law_rag.query_engine.VectorIndexRetriever") as mock_retriever_cls, \
          patch("law_rag.query_engine.get_response_synthesizer") as mock_synth:
@@ -26,7 +26,7 @@ def mock_dependencies():
         mock_settings.BASE_DIR = Path(".")
         mock_settings.validate = MagicMock()
 
-        mock_groq.return_value = MagicMock()
+        mock_openai.return_value = MagicMock()
 
         # Create mock retriever and synthesizer
         mock_retriever = MagicMock()
@@ -36,7 +36,7 @@ def mock_dependencies():
 
         yield {
             "settings": mock_settings,
-            "groq": mock_groq,
+            "openai": mock_openai,
             "retriever": mock_retriever,
             "synthesizer": mock_synthesizer,
         }

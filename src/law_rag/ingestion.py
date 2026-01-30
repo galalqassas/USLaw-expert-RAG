@@ -14,9 +14,9 @@ from llama_index.core import (
     StorageContext,
     VectorStoreIndex,
 )
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.readers import SimpleDirectoryReader
-from llama_index.embeddings.ollama import OllamaEmbedding
+# from llama_index.embeddings.ollama import OllamaEmbedding
+# from llama_index.embeddings.gemini import GeminiEmbedding
+from law_rag.light_gemini import LightweightGeminiEmbedding
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
 
@@ -34,11 +34,19 @@ class DocumentIngestionPipeline:
         self._setup_pinecone()
     
     def _setup_embedding_model(self) -> None:
-        """Configure the Ollama embedding model."""
-        self.embed_model = OllamaEmbedding(
+        """Configure the embedding model."""
+        # if settings.embedding.provider == "gemini":
+        print("Using Google Gemini Embeddings (Lightweight)")
+        self.embed_model = LightweightGeminiEmbedding(
             model_name=settings.embedding.model,
-            base_url=settings.embedding.base_url,
+            api_key=settings.groq.google_api_key,
         )
+        # else:
+        #     print("Using Ollama Embeddings")
+        #     self.embed_model = OllamaEmbedding(
+        #         model_name=settings.embedding.model,
+        #         base_url=settings.embedding.base_url,
+        #     )
         LlamaSettings.embed_model = self.embed_model
     
     def _setup_pinecone(self) -> None:
@@ -69,6 +77,8 @@ class DocumentIngestionPipeline:
         
         print(f"Loading documents from: {directory}")
         
+        from llama_index.core.readers import SimpleDirectoryReader
+
         reader = SimpleDirectoryReader(
             input_dir=str(directory),
             recursive=True,
