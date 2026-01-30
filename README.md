@@ -74,10 +74,24 @@ Visit **http://localhost:3000** (or 3001/3002) to use the application.
 uv run python -m src.law_rag.main
 ```
 
+**Run Evaluation**
+
+```bash
+uv run python -m src.law_rag.main --evaluate
+```
+
+**Single Query**
+
+```bash
+uv run python -m src.law_rag.main -q "What is fair use?"
+```
+
 **Ingest Data** (Required first run)
 
 ```bash
 uv run python -m src.law_rag.main --ingest
+# Force re-index:
+uv run python -m src.law_rag.main --ingest --force
 ```
 
 ## 🌐 API Reference
@@ -93,7 +107,7 @@ Query the RAG system with chat history.
 
 Settings are managed in `src/law_rag/config.py` and `.env`.
 
-| Component |Default                | Description         |
+| Component | Default               | Description         |
 | :-------- | :-------------------- | :------------------ |
 | **LLM**   | `openai/gpt-oss-120b` | LLM Model ID        |
 | **Index** | `1024`                | Indexing chunk size |

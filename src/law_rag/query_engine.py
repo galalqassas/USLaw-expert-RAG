@@ -92,10 +92,23 @@ class RAGQueryEngine:
         """Format retrieved nodes into serializable chunks."""
         chunks = []
         for i, node in enumerate(nodes, 1):
+            full_path = node.metadata.get("file_path", "Unknown")
+            
+            # Convert to relative path if it's an absolute path within BASE_DIR
+            if full_path != "Unknown":
+                try:
+                    p = Path(full_path)
+                    if p.is_absolute():
+                        # Try to make it relative to BASE_DIR if it's inside
+                        if p.is_relative_to(settings.BASE_DIR):
+                            full_path = str(p.relative_to(settings.BASE_DIR))
+                except (ValueError, TypeError):
+                    pass
+
             chunks.append({
                 "rank": i,
                 "score": float(node.score) if node.score else None,
-                "file_path": node.metadata.get("file_path", "Unknown"),
+                "file_path": full_path,
                 "text": node.text,
                 "text_length": len(node.text),
             })

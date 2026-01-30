@@ -80,6 +80,7 @@ Examples:
   uv run python -m src.main --ingest           # Index documents
   uv run python -m src.main --ingest --force   # Force re-index
   uv run python -m src.main -q "What is fair use?"  # Single query
+  uv run python -m src.main --evaluate         # Run evaluation suite
         """,
     )
     
@@ -101,6 +102,12 @@ Examples:
         help="Execute a single query and exit",
     )
     
+    parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Run the RAG evaluation suite",
+    )
+    
     args = parser.parse_args()
     
     try:
@@ -108,6 +115,9 @@ Examples:
             ingest_documents(force=args.force)
         elif args.query:
             single_query(args.query)
+        elif args.evaluate:
+            from law_rag.evaluate import run_evaluation
+            run_evaluation()
         else:
             interactive_query()
     except ValueError as e:

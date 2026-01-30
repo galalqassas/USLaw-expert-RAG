@@ -1,0 +1,100 @@
+{
+  "metadata": {
+    "description": "Golden evaluation dataset for US Copyright Law RAG system",
+    "source": "US Code Title 17 - Copyrights (2023 Edition)",
+    "created": "2026-01-26",
+    "total_questions": 15
+  },
+  "test_cases": [
+    {
+      "id": 1,
+      "question": "What are the four factors to consider when determining fair use?",
+      "ground_truth": "The four factors to consider in determining fair use are: (1) the purpose and character of the use, including whether such use is of a commercial nature or is for nonprofit educational purposes; (2) the nature of the copyrighted work; (3) the amount and substantiality of the portion used in relation to the copyrighted work as a whole; and (4) the effect of the use upon the potential market for or value of the copyrighted work.",
+      "source_section": "17 U.S.C. § 107"
+    },
+    {
+      "id": 2,
+      "question": "How long does copyright protection last for works created after January 1, 1978?",
+      "ground_truth": "For works created on or after January 1, 1978, copyright protection endures for a term consisting of the life of the author and 70 years after the author's death.",
+      "source_section": "17 U.S.C. § 302(a)"
+    },
+    {
+      "id": 3,
+      "question": "What is the duration of copyright for anonymous works, pseudonymous works, or works made for hire?",
+      "ground_truth": "For anonymous works, pseudonymous works, or works made for hire, copyright endures for a term of 95 years from the year of first publication, or a term of 120 years from the year of creation, whichever expires first.",
+      "source_section": "17 U.S.C. § 302(c)"
+    },
+    {
+      "id": 4,
+      "question": "What are the exclusive rights of a copyright owner?",
+      "ground_truth": "The copyright owner has the exclusive rights to: (1) reproduce the copyrighted work in copies or phonorecords; (2) prepare derivative works based upon the copyrighted work; (3) distribute copies or phonorecords of the copyrighted work to the public by sale or other transfer of ownership, or by rental, lease, or lending; (4) perform the copyrighted work publicly (for literary, musical, dramatic, choreographic works, pantomimes, motion pictures, and audiovisual works); (5) display the copyrighted work publicly; and (6) perform the copyrighted work publicly by means of a digital audio transmission (for sound recordings).",
+      "source_section": "17 U.S.C. § 106"
+    },
+    {
+      "id": 5,
+      "question": "What categories of works are protected by copyright?",
+      "ground_truth": "Copyright protection subsists in original works of authorship fixed in any tangible medium of expression. Works of authorship include: (1) literary works; (2) musical works, including any accompanying words; (3) dramatic works, including any accompanying music; (4) pantomimes and choreographic works; (5) pictorial, graphic, and sculptural works; (6) motion pictures and other audiovisual works; (7) sound recordings; and (8) architectural works.",
+      "source_section": "17 U.S.C. § 102(a)"
+    },
+    {
+      "id": 6,
+      "question": "What is NOT protected by copyright according to Section 102(b)?",
+      "ground_truth": "Copyright protection for an original work of authorship does not extend to any idea, procedure, process, system, method of operation, concept, principle, or discovery, regardless of the form in which it is described, explained, illustrated, or embodied in such work.",
+      "source_section": "17 U.S.C. § 102(b)"
+    },
+    {
+      "id": 7,
+      "question": "Who is considered a copyright infringer under Section 501?",
+      "ground_truth": "Anyone who violates any of the exclusive rights of the copyright owner as provided by sections 106 through 122 or of the author as provided in section 106A(a), or who imports copies or phonorecords into the United States in violation of section 602, is an infringer of the copyright or right of the author. The term 'anyone' includes any State, any instrumentality of a State, and any officer or employee of a State or instrumentality of a State acting in his or her official capacity.",
+      "source_section": "17 U.S.C. § 501(a)"
+    },
+    {
+      "id": 8,
+      "question": "What is the range of statutory damages for copyright infringement?",
+      "ground_truth": "The copyright owner may elect to recover statutory damages for all infringements involved in the action in a sum of not less than $750 or more than $30,000 as the court considers just, with respect to any one work. For willful infringement, the court may increase the award to not more than $150,000. For innocent infringers who were not aware their acts constituted infringement, the court may reduce the award to not less than $200.",
+      "source_section": "17 U.S.C. § 504(c)"
+    },
+    {
+      "id": 9,
+      "question": "What purposes are explicitly mentioned as examples of fair use?",
+      "ground_truth": "Fair use of a copyrighted work for purposes such as criticism, comment, news reporting, teaching (including multiple copies for classroom use), scholarship, or research, is not an infringement of copyright.",
+      "source_section": "17 U.S.C. § 107"
+    },
+    {
+      "id": 10,
+      "question": "How does the copyright term work for joint works?",
+      "ground_truth": "In the case of a joint work prepared by two or more authors who did not work for hire, the copyright endures for a term consisting of the life of the last surviving author and 70 years after such last surviving author's death.",
+      "source_section": "17 U.S.C. § 302(b)"
+    },
+    {
+      "id": 11,
+      "question": "Does an unpublished work qualify for fair use protection?",
+      "ground_truth": "Yes, the fact that a work is unpublished shall not itself bar a finding of fair use if such finding is made upon consideration of all the fair use factors.",
+      "source_section": "17 U.S.C. § 107"
+    },
+    {
+      "id": 12,
+      "question": "What remedies are available for copyright infringement regarding damages?",
+      "ground_truth": "An infringer of copyright is liable for either: (1) the copyright owner's actual damages and any additional profits of the infringer; or (2) statutory damages. The copyright owner is entitled to recover the actual damages suffered as a result of the infringement, and any profits of the infringer that are attributable to the infringement and are not taken into account in computing the actual damages.",
+      "source_section": "17 U.S.C. § 504(a) and (b)"
+    },
+    {
+      "id": 13,
+      "question": "What is vicarious liability for copyright infringement?",
+      "ground_truth": "To be held a related or vicarious infringer in the case of performing rights, a defendant must either actively operate or supervise the operation of the place wherein the performances occur, or control the content of the infringing program, and expect commercial gain from the operation and either direct or indirect benefit from the infringing performance.",
+      "source_section": "17 U.S.C. § 501 (House Report)"
+    },
+    {
+      "id": 14,
+      "question": "Who can bring an action for copyright infringement?",
+      "ground_truth": "The legal or beneficial owner of an exclusive right under a copyright is entitled, subject to the requirements of section 411, to institute an action for any infringement of that particular right committed while he or she is the owner of it. A 'beneficial owner' would include, for example, an author who had parted with legal title to the copyright in exchange for percentage royalties based on sales or license fees.",
+      "source_section": "17 U.S.C. § 501(b)"
+    },
+    {
+      "id": 15,
+      "question": "What happens if someone infringes copyright believing it was fair use in an educational context?",
+      "ground_truth": "The court shall remit (eliminate) statutory damages in any case where an infringer believed and had reasonable grounds for believing that his or her use of the copyrighted work was a fair use under section 107, if the infringer was: (i) an employee or agent of a nonprofit educational institution, library, or archives acting within the scope of his or her employment who infringed by reproducing the work in copies or phonorecords; or (ii) a public broadcasting entity which infringed by performing a published nondramatic literary work or by reproducing a transmission program embodying a performance of such a work.",
+      "source_section": "17 U.S.C. § 504(c)(2)"
+    }
+  ]
+}
