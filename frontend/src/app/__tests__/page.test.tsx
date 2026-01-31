@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import Home from '@/app/page';
 
-// Mock the hooks - updated for new useChat signature
+// Mock the hooks - updated for new useChat and useChatHistory signatures
 jest.mock('@/hooks', () => ({
   useChat: jest.fn(() => ({
     messages: [],
@@ -11,6 +11,17 @@ jest.mock('@/hooks', () => ({
     error: null,
     send: jest.fn(),
     reset: jest.fn(),
+    setMessages: jest.fn(),
+  })),
+  useChatHistory: jest.fn(() => ({
+    sessions: [],
+    activeSessionId: 'test-session-id',
+    loadSession: jest.fn(() => []),
+    saveSession: jest.fn(),
+    deleteSession: jest.fn(),
+    createSession: jest.fn(() => 'new-session-id'),
+    setActiveSessionId: jest.fn(),
+    refresh: jest.fn(),
   })),
 }));
 
@@ -36,6 +47,15 @@ jest.mock('@/components/ModelSelector', () => ({
   ),
 }));
 
+// Mock ChatHistorySidebar
+jest.mock('@/components/ChatHistorySidebar', () => ({
+  ChatHistorySidebar: ({ onNewChat }: { onNewChat: () => void }) => (
+    <aside data-testid="chat-history-sidebar">
+      <button onClick={onNewChat}>New Chat</button>
+    </aside>
+  ),
+}));
+
 describe('Home Page', () => {
   it('renders empty state initially', () => {
     render(<Home />);
@@ -51,7 +71,7 @@ describe('Home Page', () => {
     expect(screen.getByText('No sources retrieved yet.')).toBeInTheDocument();
   });
 
-  it('renders new chat button', () => {
+  it('renders new chat button in header', () => {
     render(<Home />);
     
     expect(screen.getByTitle('Start a new chat')).toBeInTheDocument();
@@ -61,5 +81,11 @@ describe('Home Page', () => {
     render(<Home />);
     
     expect(screen.getByTestId('model-selector-mock')).toBeInTheDocument();
+  });
+
+  it('renders chat history sidebar', () => {
+    render(<Home />);
+    
+    expect(screen.getByTestId('chat-history-sidebar')).toBeInTheDocument();
   });
 });

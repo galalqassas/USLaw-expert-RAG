@@ -20,6 +20,7 @@ interface UseChatReturn {
   error: string | null;
   send: (content: string) => void;
   reset: () => void;
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }
 
 interface BackendSource {
@@ -154,5 +155,5 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
     setIsLoading(false);
   }, []);
 
-  return { messages, chunks, metrics, isLoading, error, send, reset };
+  return { messages, chunks, metrics, isLoading, error, send, reset, setMessages };
 }

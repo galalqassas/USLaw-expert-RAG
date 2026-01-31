@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { render } from '@testing-library/react';
 
 // Create a simplified mock component to test the logic
 const mockOnValueChange = jest.fn();
