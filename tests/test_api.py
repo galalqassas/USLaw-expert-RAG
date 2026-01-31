@@ -32,7 +32,7 @@ class TestQueryEndpoint:
         assert r.status_code == 200
 
     def test_query_empty_messages_rejected(self, client):
-        assert client.post("/query", json={"messages": []}).status_code == 400
+        assert client.post("/query", json={"messages": []}).status_code == 422
 
     def test_query_invalid_format_rejected(self, client):
         assert client.post("/query", json={}).status_code == 422
@@ -41,7 +41,7 @@ class TestQueryEndpoint:
 class TestIngestEndpoint:
     def test_ingest_returns_message(self, client):
         r = client.post("/ingest", json={})
-        assert r.status_code == 200
+        assert r.status_code == 202
         assert "message" in r.json()
 
 
@@ -75,7 +75,7 @@ class TestChatStreamEndpoint:
     def test_chat_stream_empty_messages_rejected(self, client):
         """Test that empty messages are rejected."""
         r = client.post("/chat", json={"messages": []})
-        assert r.status_code == 400
+        assert r.status_code == 422
 
     def test_chat_stream_invalid_format_rejected(self, client):
         """Test that invalid request format is rejected."""

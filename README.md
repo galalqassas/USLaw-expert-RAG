@@ -4,6 +4,11 @@ A high-performance **Retrieval-Augmented Generation (RAG)** system built for que
 
 Now updated with a modern **React/Next.js UI**, context-aware chat, and real-time citing.
 
+## 🚀 Live Demo
+
+- **Frontend**: [https://us-law-expert-frontend.vercel.app/](https://us-law-expert-frontend.vercel.app/)
+- **Backend API**: [https://us-law-expert-rag.vercel.app/docs](https://us-law-expert-rag.vercel.app/docs)
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -93,7 +98,16 @@ uv run python -m law_rag.main --ingest --force
 Streaming chat endpoint.
 
 - **Swagger UI**: `http://localhost:8000/docs`
-- **Health Check**: `http://localhost:8000/health`
+- **Health Check**: `http://localhost:8000/health` or `GET /health`
+
+#### Endpoints
+
+| Method | Endpoint  | Description                                                         |
+| :----- | :-------- | :------------------------------------------------------------------ |
+| `GET`  | `/health` | Health check probe. Returns `{"status": "ok"}`.                     |
+| `POST` | `/chat`   | **Streaming** chat endpoint compatible with Vercel AI SDK.          |
+| `POST` | `/query`  | Non-streaming query endpoint. Returns JSON with answer and sources. |
+| `POST` | `/ingest` | Trigger background document ingestion.                              |
 
 ## ⚙️ Configuration
 

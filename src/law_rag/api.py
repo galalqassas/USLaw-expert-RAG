@@ -4,10 +4,10 @@ import json
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from law_rag.ingestion import DocumentIngestionPipeline
 from law_rag.query_engine import RAGQueryEngine
@@ -16,21 +16,30 @@ from law_rag.query_engine import RAGQueryEngine
 
 
 class Message(BaseModel):
-    role: str
-    content: str
+    role: str = Field(..., description="Role of the message sender (e.g., 'user', 'assistant')")
+    content: str = Field(..., description="Content of the message")
 
 
 class QueryRequest(BaseModel):
-    messages: list[Message]
+    messages: list[Message] = Field(
+        ..., 
+        description="List of conversation messages",
+        min_length=1,
+        examples=[
+            [
+                {"role": "user", "content": "What is fair use?"}
+            ]
+        ]
+    )
 
 
 class QueryResponse(BaseModel):
-    answer: str
-    sources: list[dict]
+    answer: str = Field(..., description="Synthesized answer from the RAG system")
+    sources: list[dict] = Field(..., description="List of source documents used for the answer")
 
 
 class IngestRequest(BaseModel):
-    force: bool = False
+    force: bool = Field(False, description="Force re-indexing of all documents even if they already exist")
 
 
 # --- State ---
@@ -62,9 +71,26 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="US Copyright Law RAG API",
+    description="""
+    Expert RAG system for US Copyright Law (Title 17). 
+    
+    Provides endpoints for:
+    - **Querying**: Ask questions about copyright law and get cited answers.
+    - **Streaming Chat**: Real-time conversational interface.
+    - **Ingestion**: Indexing of legal documents.
+    """,
     version="1.0.0",
+    contact={
+        "name": "US Law Expert RAG Team",
+        "url": "https://github.com/galalqassas/USLaw-expert-RAG",
+    },
+    license_info={
+        "name": "MIT",
+    },
     lifespan=lifespan,
     root_path="/api" if os.getenv("VERCEL") else "",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
@@ -78,14 +104,37 @@ app.add_middleware(
 # --- Endpoints ---
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    tags=["Health"],
+    summary="Health Check",
+    description="Checks if the RAG engine is initialized and the API is ready to accept requests.",
+    status_code=status.HTTP_200_OK,
+)
 async def health():
+    """
+    Perform a health check.
+
+    Returns:
+        dict: {"status": "ok"} if successful.
+    """
     _get_engine()
     return {"status": "ok"}
 
 
-@app.post("/query", response_model=QueryResponse)
+@app.post(
+    "/query",
+    response_model=QueryResponse,
+    tags=["Query"],
+    summary="Submit a RAG Query",
+    description="Submit a question to the RAG system and receive a synthesized answer with sources.",
+)
 async def query(req: QueryRequest):
+    """
+    Process a user query using the RAG engine.
+
+    - **req**: The query request containing the message history.
+    """
     if not req.messages:
         raise HTTPException(400, "No messages provided")
 
@@ -96,20 +145,42 @@ async def query(req: QueryRequest):
     return QueryResponse(answer=result["response"], sources=result["sources"])
 
 
-@app.post("/ingest")
+@app.post(
+    "/ingest",
+    tags=["Ingestion"],
+    summary="Trigger Document Ingestion",
+    description="Start the background process to ingest and index documents from the source directory.",
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def ingest(req: IngestRequest, bg: BackgroundTasks):
+    """
+    Trigger the document ingestion pipeline in the background.
+
+    - **force**: If true, re-indexes everything from scratch.
+    """
     def task():
         global _engine
+        print(f"🔄 Starting background ingestion (force={req.force})...")
         pipeline = DocumentIngestionPipeline()
         _engine = RAGQueryEngine(pipeline.run(force_reindex=req.force))
+        print("✅ Background ingestion complete.")
 
     bg.add_task(task)
-    return {"message": "Ingestion started"}
+    return {"message": "Ingestion started", "details": "Processing in background"}
 
 
-@app.post("/chat")
+@app.post(
+    "/chat",
+    tags=["Chat"],
+    summary="Streaming Chat",
+    description="Stream the response token by token using the Vercel AI SDK Data Stream Protocol.",
+)
 async def chat_stream(req: QueryRequest):
-    """Streaming chat endpoint (Vercel AI SDK Data Stream Protocol)."""
+    """
+    Streaming chat endpoint.
+
+    Returns a stream of text and data events compliant with Vercel AI SDK.
+    """
     if not req.messages:
         raise HTTPException(400, "No messages provided")
 
