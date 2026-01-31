@@ -49,7 +49,7 @@ const mapSources = (sources: BackendSource[]): RetrievedChunk[] =>
 
 // --- Hook ---
 
-export function useChat(): UseChatReturn {
+export function useChat({ model }: { model?: string } = {}): UseChatReturn {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chunks, setChunks] = useState<RetrievedChunk[]>([]);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
@@ -85,6 +85,7 @@ export function useChat(): UseChatReturn {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })),
+          model: model, // Include model in request
         }),
         signal: abortRef.current.signal,
       });
@@ -142,7 +143,7 @@ export function useChat(): UseChatReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, model]); // Added model to dependency array
 
   const reset = useCallback(() => {
     abortRef.current?.abort();

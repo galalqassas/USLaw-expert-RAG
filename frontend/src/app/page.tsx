@@ -1,17 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import { useChat } from '@/hooks';
 import { Header, ChatBubble, ChatInput, RetrievalCard, MetricsBadges, TypingIndicator, EmptyState } from '@/components';
+import { ModelSelector } from '@/components/ModelSelector';
 import { UI_TEXT } from '@/lib/constants';
 
 // --- Main Page ---
 export default function Home() {
-  const { messages, chunks, metrics, isLoading, send, reset } = useChat();
+  const [selectedModel, setSelectedModel] = useState<string>('openai/gpt-oss-120b');
+  const { messages, chunks, metrics, isLoading, send, reset } = useChat({ model: selectedModel });
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header
         onNewChat={reset}
+        modelSelector={<ModelSelector value={selectedModel} onValueChange={setSelectedModel} />}
       />
 
       <main className="flex-1 flex overflow-hidden">

@@ -53,4 +53,11 @@ describe('Header', () => {
     
     expect(screen.getByLabelText('Toggle dark mode')).toBeInTheDocument();
   });
+
+  it('renders modelSelector when provided', () => {
+    const ModelSelectorMock = () => <div data-testid="model-selector-slot">Model Selector</div>;
+    render(<Header modelSelector={<ModelSelectorMock />} />);
+    
+    expect(screen.getByTestId('model-selector-slot')).toBeInTheDocument();
+  });
 });

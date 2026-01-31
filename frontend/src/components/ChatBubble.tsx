@@ -2,6 +2,7 @@ import { Message } from '@/types';
 import { memo } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MessageReasoning } from './MessageReasoning';
 
 interface ChatBubbleProps {
   message: Message;
@@ -70,14 +71,35 @@ export const ChatBubble = memo(function ChatBubble({ message }: ChatBubbleProps)
             : 'bg-surface text-foreground border border-border rounded-bl-md'
         }`}
       >
-        {isUser ? (
+        {!isUser && (
+          <>
+            {(() => {
+              const thinkMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
+              const thinkingContent = thinkMatch ? thinkMatch[1] : null;
+              const mainContent = message.content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+
+              return (
+                <>
+                  {thinkingContent && (
+                    <MessageReasoning 
+                      isLoading={false} // Since we are parsing full content, we can assume it's static or we'd need better streaming logic
+                      reasoning={thinkingContent} 
+                    />
+                  )}
+                  {mainContent && (
+                     <div className="prose prose-sm dark:prose-invert max-w-none break-words mt-2">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                        {mainContent}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </>
+        )}
+        {isUser && (
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none break-words">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
-              {message.content}
-            </ReactMarkdown>
-          </div>
         )}
       </div>
     </div>
