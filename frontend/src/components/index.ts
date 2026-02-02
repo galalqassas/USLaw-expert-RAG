@@ -8,4 +8,4 @@ export { MetricsBadges } from './MetricsBadges';
 export { RetrievalCard } from './RetrievalCard';
 export { TypingIndicator } from './TypingIndicator';
 export { EmptyState } from './EmptyState';
-
+export { SuggestedActions } from './SuggestedActions';

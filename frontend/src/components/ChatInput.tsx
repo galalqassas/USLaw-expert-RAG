@@ -8,12 +8,14 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  children?: React.ReactNode;
 }
 
 export function ChatInput({ 
   onSend, 
   disabled = false, 
-  placeholder = UI_TEXT.INPUT_PLACEHOLDER 
+  placeholder = UI_TEXT.INPUT_PLACEHOLDER,
+  children
 }: ChatInputProps) {
   const [inputValue, setInputValue] = useState('');
 
@@ -33,6 +35,7 @@ export function ChatInput({
 
   return (
     <div className="p-4 border-t border-border">
+      {children}
       <div className="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-2 shadow-sm">
         <input
           type="text"

@@ -1,18 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import Home from '@/app/page';
 
-// Mock the hooks - updated for new useChat and useChatHistory signatures
+const mockUseChat = jest.fn();
+
 jest.mock('@/hooks', () => ({
-  useChat: jest.fn(() => ({
-    messages: [],
-    chunks: [],
-    metrics: null,
-    isLoading: false,
-    error: null,
-    send: jest.fn(),
-    reset: jest.fn(),
-    setMessages: jest.fn(),
-  })),
+  useChat: () => mockUseChat(),
   useChatHistory: jest.fn(() => ({
     sessions: [],
     activeSessionId: 'test-session-id',
@@ -57,6 +49,19 @@ jest.mock('@/components/ChatHistorySidebar', () => ({
 }));
 
 describe('Home Page', () => {
+  beforeEach(() => {
+    mockUseChat.mockReturnValue({
+      messages: [],
+      chunks: [],
+      metrics: null,
+      isLoading: false,
+      error: null,
+      send: jest.fn(),
+      reset: jest.fn(),
+      setMessages: jest.fn(),
+    });
+  });
+
   it('renders empty state initially', () => {
     render(<Home />);
     
@@ -87,5 +92,40 @@ describe('Home Page', () => {
     render(<Home />);
     
     expect(screen.getByTestId('chat-history-sidebar')).toBeInTheDocument();
+  });
+
+  it('renders SuggestedActions when messages are empty', () => {
+    mockUseChat.mockReturnValue({
+      messages: [],
+      chunks: [],
+      metrics: null,
+      isLoading: false,
+      error: null,
+      send: jest.fn(),
+      reset: jest.fn(),
+      setMessages: jest.fn(),
+    });
+
+    render(<Home />);
+    
+    // Check for a known suggested action text from SuggestedActions component
+    expect(screen.getByText('What works are eligible for copyright protection?')).toBeInTheDocument();
+  });
+
+  it('does not render SuggestedActions when messages exist', () => {
+    mockUseChat.mockReturnValue({
+      messages: [{ id: '1', role: 'user', content: 'Hello' }],
+      chunks: [],
+      metrics: null,
+      isLoading: false,
+      error: null,
+      send: jest.fn(),
+      reset: jest.fn(),
+      setMessages: jest.fn(),
+    });
+
+    render(<Home />);
+    
+    expect(screen.queryByText('What works are eligible for copyright protection?')).not.toBeInTheDocument();
   });
 });

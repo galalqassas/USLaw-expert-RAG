@@ -17,6 +17,16 @@ describe('ChatInput', () => {
     expect(input).toHaveAttribute('placeholder', UI_TEXT.INPUT_PLACEHOLDER);
   });
 
+  it('renders children correctly', () => {
+    render(
+      <ChatInput onSend={mockOnSend}>
+        <div data-testid="test-child">Child Element</div>
+      </ChatInput>
+    );
+    
+    expect(screen.getByTestId('test-child')).toBeInTheDocument();
+  });
+
   it('renders with custom placeholder', () => {
     const customPlaceholder = 'Type your question...';
     render(<ChatInput onSend={mockOnSend} placeholder={customPlaceholder} />);

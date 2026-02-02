@@ -10,7 +10,8 @@ import {
   RetrievalCard, 
   MetricsBadges, 
   TypingIndicator, 
-  EmptyState 
+  EmptyState,
+  SuggestedActions
 } from '@/components';
 import { ModelSelector } from '@/components/ModelSelector';
 import { UI_TEXT } from '@/lib/constants';
@@ -68,7 +69,7 @@ export default function Home() {
   }, [activeSessionId, messages.length, createSession]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Header
         onNewChat={handleNewChat}
         modelSelector={<ModelSelector value={selectedModel} onValueChange={setSelectedModel} />}
@@ -95,7 +96,9 @@ export default function Home() {
             })}
             {isLoading && <TypingIndicator />}
           </div>
-          <ChatInput onSend={send} disabled={isLoading} />
+          <ChatInput onSend={send} disabled={isLoading}>
+            {messages.length === 0 && <SuggestedActions onAppend={send} />}
+          </ChatInput>
         </section>
 
         {/* Retrieval Panel (Right) */}
