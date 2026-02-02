@@ -34,9 +34,9 @@ export function ChatInput({
   };
 
   return (
-    <div className="p-4 border-t border-border">
+    <div className="p-3 md:p-4 border-t border-border">
       {children}
-      <div className="flex items-center gap-3 bg-surface border border-border rounded-xl px-4 py-2 shadow-sm">
+      <div className="flex items-center gap-2 md:gap-3 bg-surface border border-border rounded-xl px-3 md:px-4 py-2 shadow-sm">
         <input
           type="text"
           value={inputValue}
@@ -44,16 +44,17 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-secondary-text disabled:opacity-50"
+          className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-secondary-text disabled:opacity-50 min-w-0"
           data-testid="chat-input"
         />
         <button
           onClick={handleSend}
           disabled={disabled || !inputValue.trim()}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-3 md:px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           data-testid="send-button"
         >
-          {UI_TEXT.SEND_BUTTON} <Send className="w-4 h-4" />
+          <span className="hidden sm:inline">{UI_TEXT.SEND_BUTTON}</span>
+          <Send className="w-4 h-4" />
         </button>
       </div>
     </div>

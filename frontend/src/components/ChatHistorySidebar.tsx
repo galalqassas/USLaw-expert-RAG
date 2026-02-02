@@ -8,7 +8,7 @@
  */
 
 import { memo, useMemo } from 'react';
-import { MessageSquare, Trash2, Plus } from 'lucide-react';
+import { MessageSquare, Trash2, Plus, X } from 'lucide-react';
 import { ChatSessionSummary } from '@/types/chat-history';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,10 @@ interface ChatHistorySidebarProps {
   onSelectSession: (id: string) => void;
   onDeleteSession: (id: string) => void;
   onNewChat: () => void;
+  onClose?: () => void;
+  showCloseButton?: boolean;
   isCollapsed?: boolean;
+  className?: string;
 }
 
 interface ChatHistoryItemProps {
@@ -93,7 +96,10 @@ export const ChatHistorySidebar = memo(function ChatHistorySidebar({
   onSelectSession,
   onDeleteSession,
   onNewChat,
+  onClose,
+  showCloseButton = false,
   isCollapsed = false,
+  className,
 }: ChatHistorySidebarProps) {
   // Group sessions by date
   const groupedSessions = useMemo(() => {
@@ -114,11 +120,12 @@ export const ChatHistorySidebar = memo(function ChatHistorySidebar({
 
   if (isCollapsed) {
     return (
-      <aside className="w-12 border-r border-border bg-surface flex flex-col items-center py-4">
+      <aside className={cn("w-full border-r border-border bg-surface flex flex-col items-center py-4", className)}>
         <button
           onClick={onNewChat}
           className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
           aria-label="New chat"
+          title="New chat"
         >
           <Plus className="w-5 h-5" />
         </button>
@@ -127,18 +134,28 @@ export const ChatHistorySidebar = memo(function ChatHistorySidebar({
   }
 
   return (
-    <aside className="w-64 border-r border-border bg-surface flex flex-col overflow-hidden">
+    <aside className={cn("w-full border-r border-border bg-surface flex flex-col overflow-hidden h-full", className)}>
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border flex items-center gap-2">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 
                      bg-primary text-primary-foreground rounded-lg font-medium
                      hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           New Chat
         </button>
+        {/* Mobile Close Button */}
+        {showCloseButton && onClose && (
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 rounded-lg hover:bg-surface-hover transition-colors"
+            aria-label="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Session List */}

@@ -2,6 +2,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '@/components/Header';
 import { APP_NAME } from '@/lib/constants';
 
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Sun: () => <svg data-testid="icon-sun" />,
+  Moon: () => <svg data-testid="icon-moon" />,
+  PlusCircle: () => <svg data-testid="icon-plus-circle" />,
+  PanelLeft: () => <svg data-testid="icon-panel-left" />,
+  PanelRight: () => <svg data-testid="icon-panel-right" />,
+}));
+
 // Mock next-themes
 const mockSetTheme = jest.fn();
 jest.mock('next-themes', () => ({
@@ -60,4 +69,36 @@ describe('Header', () => {
     
     expect(screen.getByTestId('model-selector-slot')).toBeInTheDocument();
   });
+
+  it('renders menu toggle button and calls onMenuClick', () => {
+    const mockMenuClick = jest.fn();
+    render(<Header onMenuClick={mockMenuClick} />);
+    
+    const menuBtn = screen.getByTestId('menu-toggle');
+    expect(menuBtn).toBeInTheDocument();
+    
+    fireEvent.click(menuBtn);
+    expect(mockMenuClick).toHaveBeenCalled();
+  });
+
+  it('renders sources toggle button and calls onSourcesClick', () => {
+    const mockSourcesClick = jest.fn();
+    render(<Header onSourcesClick={mockSourcesClick} />);
+    
+    const sourcesBtn = screen.getByTestId('sources-toggle');
+    expect(sourcesBtn).toBeInTheDocument();
+    
+    fireEvent.click(sourcesBtn);
+    expect(mockSourcesClick).toHaveBeenCalled();
+  });
+
+  it('shows notification dot when hasChunks is true', () => {
+    render(<Header hasChunks={true} onSourcesClick={() => {}} />);
+    
+    const sourcesBtn = screen.getByTestId('sources-toggle');
+    // Check that there's a span with the notification dot class inside the button
+    const notificationDot = sourcesBtn.querySelector('span.bg-primary');
+    expect(notificationDot).toBeInTheDocument();
+  });
 });
+
