@@ -25,6 +25,8 @@ def mock_dependencies():
         mock_settings.similarity_top_k = 5
         mock_settings.response_mode = "compact"
         mock_settings.chunk_preview_length = 200
+        mock_settings.system_prompt = "Test System Prompt"
+        mock_settings.qa_template = "Context: {context_str} Query: {query_str} Answer:"
         mock_settings.BASE_DIR = Path(".")
         mock_settings.validate = MagicMock()
 

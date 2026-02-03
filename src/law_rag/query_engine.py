@@ -1,12 +1,13 @@
 """Query engine module - RAG interface using Groq LLM and Pinecone retrieval."""
 
+import functools
 import json
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
 
-from llama_index.core import Settings as LlamaSettings, VectorStoreIndex
+from llama_index.core import Settings as LlamaSettings, VectorStoreIndex, PromptTemplate
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.llms.openai import OpenAI
@@ -33,31 +34,62 @@ class RAGQueryEngine:
             print("⚠️ Read-only filesystem. File logging disabled.")
             return False
 
+
     def _setup_components(self) -> None:
         # Register Groq model as valid OpenAI model
         ALL_AVAILABLE_MODELS[settings.groq.model] = settings.groq.context_window
         CHAT_MODELS[settings.groq.model] = settings.groq.context_window
 
-        self.llm = OpenAI(
-            model=settings.groq.model,
-            api_key=settings.groq.api_key,
-            api_base="https://api.groq.com/openai/v1",
-            temperature=settings.groq.temperature,
-            max_tokens=settings.groq.max_tokens,
-        )
+        self.llm = self._create_llm_instance(settings.groq.model)
         LlamaSettings.llm = self.llm
 
         self.retriever = VectorIndexRetriever(
             index=self.index, similarity_top_k=settings.similarity_top_k
         )
         self.synthesizer = get_response_synthesizer(
-            llm=self.llm, response_mode=settings.response_mode
+            llm=self.llm,
+            response_mode=settings.response_mode,
+            text_qa_template=PromptTemplate(settings.qa_template),
         )
         self.streaming_synthesizer = get_response_synthesizer(
-            llm=self.llm, response_mode=settings.response_mode, streaming=True
+            llm=self.llm,
+            response_mode=settings.response_mode,
+            streaming=True,
+            text_qa_template=PromptTemplate(settings.qa_template),
+        )
+
+    def _get_synthesizer(self, model: str | None = None, streaming: bool = False):
+        if not model or model == settings.groq.model:
+            return self.streaming_synthesizer if streaming else self.synthesizer
+
+        ALL_AVAILABLE_MODELS.setdefault(model, settings.groq.context_window)
+        CHAT_MODELS.setdefault(model, settings.groq.context_window)
+        
+        return self._get_cached_synthesizer(model, streaming)
+
+    @functools.lru_cache(maxsize=16)
+    def _get_cached_synthesizer(self, model: str, streaming: bool):
+        """Internal cached method to avoid repetitive LLM/Synthesizer creation."""
+        llm = self._create_llm_instance(model)
+        return get_response_synthesizer(
+            llm=llm,
+            response_mode=settings.response_mode,
+            streaming=streaming,
+            text_qa_template=PromptTemplate(settings.qa_template),
         )
 
     # --- Helpers ---
+
+    def _create_llm_instance(self, model: str) -> OpenAI:
+        """Create an OpenAI LLM instance with standard settings."""
+        return OpenAI(
+            model=model,
+            api_key=settings.groq.api_key,
+            api_base="https://api.groq.com/openai/v1",
+            temperature=settings.groq.temperature,
+            max_tokens=settings.groq.max_tokens,
+            system_prompt=settings.system_prompt,
+        )
 
     def _augment_query(self, message: str, history: list[dict]) -> str:
         """Build augmented query with conversation history."""
@@ -92,7 +124,7 @@ class RAGQueryEngine:
         return result
 
     def _log_query(
-        self, question: str, chunks: list[dict], response: str, timing: dict
+        self, question: str, chunks: list[dict], response: str, timing: dict, model: str
     ) -> None:
         if not self._enable_file_logging:
             return
@@ -101,7 +133,7 @@ class RAGQueryEngine:
         data = {
             "timestamp": datetime.now().isoformat(),
             "question": question,
-            "model": settings.groq.model,
+            "model": model,
             "timing_seconds": timing,
             "retrieved_chunks": chunks,
             "response": response,
@@ -112,28 +144,71 @@ class RAGQueryEngine:
 
     # --- Public Methods ---
 
-    def chat(self, message: str, history: list[dict]) -> dict:
+    def chat(self, message: str, history: list[dict], model: str | None = None) -> dict:
         """Chat with the RAG system (non-streaming)."""
+        t0 = time.perf_counter()
         query = self._augment_query(message, history)
+        
+        t1 = time.perf_counter()
         nodes = self.retriever.retrieve(query)
-        response = self.synthesizer.synthesize(query, nodes=nodes)
-        return {"response": str(response), "sources": self._format_chunks(nodes)}
+        retrieval_time = time.perf_counter() - t1
+        
+        synthesizer = self._get_synthesizer(model, streaming=False)
+        t2 = time.perf_counter()
+        response = synthesizer.synthesize(query, nodes=nodes)
+        synthesis_time = time.perf_counter() - t2
+        total_time = time.perf_counter() - t0
 
-    def stream_chat(self, message: str, history: list[dict]):
+        response_text = str(response)
+        chunks = self._format_chunks(nodes)
+        
+        threading.Thread(
+            target=self._log_query,
+            args=(message, chunks, response_text, {
+                "retrieval": round(retrieval_time, 4),
+                "synthesis": round(synthesis_time, 4),
+                "total": round(total_time, 4),
+            }, model or settings.groq.model),
+            daemon=True,
+        ).start()
+
+        return {"response": response_text, "sources": chunks}
+
+    def stream_chat(self, message: str, history: list[dict], model: str | None = None):
         """Stream chat response: sources first, then text tokens."""
+        t0 = time.perf_counter()
         query = self._augment_query(message, history)
 
         # Phase 1: Retrieve and emit sources
-        t0 = time.perf_counter()
+        t1 = time.perf_counter()
         nodes = self.retriever.retrieve(query)
-        retrieval_time = time.perf_counter() - t0
+        retrieval_time = time.perf_counter() - t1
 
-        yield f"2:{json.dumps({'sources': self._format_chunks(nodes), 'retrieval_time': retrieval_time})}\n"
+        chunks = self._format_chunks(nodes)
+        yield f"2:{json.dumps({'sources': chunks, 'retrieval_time': retrieval_time})}\n"
 
         # Phase 2: Stream synthesis tokens
-        streaming_response = self.streaming_synthesizer.synthesize(query, nodes=nodes)
+        synthesizer = self._get_synthesizer(model, streaming=True)
+        t2 = time.perf_counter()
+        streaming_response = synthesizer.synthesize(query, nodes=nodes)
+        
+        response_text = ""
         for token in streaming_response.response_gen:
+            response_text += token
             yield f"0:{json.dumps(token)}\n"
+            
+        synthesis_time = time.perf_counter() - t2
+        total_time = time.perf_counter() - t0
+        
+        threading.Thread(
+            target=self._log_query,
+            args=(message, chunks, response_text, {
+                "retrieval": round(retrieval_time, 4),
+                "synthesis": round(synthesis_time, 4),
+                "total": round(total_time, 4),
+            }, model or settings.groq.model),
+            daemon=True,
+        ).start()
 
     def query(self, question: str, verbose: bool = False) -> str:
         """Query the RAG system with timing and logging (CLI use)."""
@@ -172,7 +247,7 @@ class RAGQueryEngine:
         }
         threading.Thread(
             target=self._log_query,
-            args=(question, chunks, response_text, timing),
+            args=(question, chunks, response_text, timing, settings.groq.model),
             daemon=True,
         ).start()
 

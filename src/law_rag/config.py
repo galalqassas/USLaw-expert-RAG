@@ -15,6 +15,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+SYSTEM_PROMPT = """You are an expert US Law assistant with access to a database of US Copyright Law (Title 17).
+Your goal is to answer user questions accurately, specifically, and comprehensively.
+You are part of a RAG (Retrieval Augmented Generation) system. The user asks a question, and the system retrieves relevant legal text chunks (context) for you to use.
+The user is NOT the author of the text chunks. You are.
+Always prioritize the provided context for specific legal details.
+However, you also have general knowledge. If the provided context is insufficient or irrelevant to answer a general question (like "Who are you?"), rely on your general knowledge and system instructions. 
+Do NOT say "I am not identified in the material provided". Instead, identify yourself as a US Law Expert Assistant.
+"""
+
+QA_PROMPT_TEMPLATE = (
+    "Context information from the US Copyright Law database is below.\n"
+    "---------------------\n"
+    "{context_str}\n"
+    "---------------------\n"
+    "Given the context information above and your general knowledge as a legal expert, "
+    "answer the query.\n"
+    "Query: {query_str}\n"
+    "Answer: "
+)
+
+
 @dataclass(frozen=True, slots=True)
 class GroqConfig:
     """Groq LLM configuration."""
@@ -91,6 +112,8 @@ class Settings:
     similarity_top_k: int = 7  # Retrieve more chunks for better coverage
     response_mode: str = "compact"  # LlamaIndex response synthesis mode
     chunk_preview_length: int = 150  # Characters to show in chunk preview
+    system_prompt: str = field(default=SYSTEM_PROMPT)
+    qa_template: str = field(default=QA_PROMPT_TEMPLATE)
 
     def validate(self) -> None:
         """Validate that all required configuration is present."""

@@ -31,6 +31,7 @@ class QueryRequest(BaseModel):
             ]
         ]
     )
+    model: str | None = Field(default=None, description="Model to use for generation (e.g. 'openai/gpt-oss-120b')")
 
 
 class QueryResponse(BaseModel):
@@ -141,6 +142,7 @@ async def query(req: QueryRequest):
     result = _get_engine().chat(
         req.messages[-1].content,
         [m.model_dump() for m in req.messages[:-1]],
+        model=req.model,
     )
     return QueryResponse(answer=result["response"], sources=result["sources"])
 
@@ -189,8 +191,8 @@ async def chat_stream(req: QueryRequest):
 
     def generate():
         try:
-            print(f"👉 Starting stream for query: {last_msg[:50]}...")
-            yield from _get_engine().stream_chat(last_msg, history)
+            print(f"👉 Starting stream for query: {last_msg[:50]}... (Model: {req.model or 'default'})")
+            yield from _get_engine().stream_chat(last_msg, history, model=req.model)
             print("✅ Stream completed successfully")
         except Exception as e:
             print(f"❌ Error during streaming: {e}")

@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 def mock_engine():
     """Mock RAGQueryEngine that returns dynamic responses."""
     engine = MagicMock()
-    engine.chat.side_effect = lambda msg, hist=None: {
+    engine.chat.side_effect = lambda msg, hist=None, **kwargs: {
         "response": f"Mock: {msg}",
         "sources": [{"rank": 1, "score": 0.9, "file_path": "doc.html", "text": "..."}],
     }
 
     # Mock stream_chat to yield tokens
-    def mock_stream_chat(msg, hist=None):
+    def mock_stream_chat(msg, hist=None, **kwargs):
         for token in f"Streaming response for: {msg}".split():
             yield token + " "
 
