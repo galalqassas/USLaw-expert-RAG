@@ -29,24 +29,8 @@ const models = [
     label: "OpenAI GPT OSS 20B",
   },
   {
-    value: "groq/compound",
-    label: "Groq Compound",
-  },
-  {
-    value: "groq/compound-mini",
-    label: "Groq Compound Mini",
-  },
-  {
-    value: "meta-llama/llama-4-maverick-17b-128e-instruct",
-    label: "Llama 4 Maverick 17B",
-  },
-  {
     value: "moonshotai/kimi-k2-instruct-0905",
     label: "Moonshot Kimi K2",
-  },
-  {
-    value: "qwen/qwen3-32b",
-    label: "Qwen 3 32B",
   },
 ]
 
@@ -83,8 +67,8 @@ export function ModelSelector({ value, onValueChange }: ModelSelectorProps) {
                 <CommandItem
                   key={model.value}
                   value={model.value}
-                  onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue)
+                  onSelect={() => {
+                    onValueChange(value === model.value ? "" : model.value)
                     setOpen(false)
                   }}
                 >

@@ -59,9 +59,12 @@ class RAGQueryEngine:
         )
 
     def _get_synthesizer(self, model: str | None = None, streaming: bool = False):
+        print(f"🔍 [QueryEngine] _get_synthesizer called with model='{model}', default='{settings.groq.model}'")
         if not model or model == settings.groq.model:
+            print("   → Using default synthesizer")
             return self.streaming_synthesizer if streaming else self.synthesizer
 
+        print(f"   → Creating dynamic synthesizer for model: {model}")
         ALL_AVAILABLE_MODELS.setdefault(model, settings.groq.context_window)
         CHAT_MODELS.setdefault(model, settings.groq.context_window)
         

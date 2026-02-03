@@ -8,7 +8,6 @@ global.fetch = mockFetch;
 describe('useChat', () => {
   beforeEach(() => {
     mockFetch.mockClear();
-    // Default mock implementation for fetch
     mockFetch.mockResolvedValue({
       ok: true,
       headers: new Headers(),
@@ -32,15 +31,13 @@ describe('useChat', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('sends a message and updates state', async () => {
+  it('sends a message with session ID', async () => {
     const { result } = renderHook(() => useChat());
 
     await act(async () => {
-      result.current.send('Hello world');
+      result.current.send('Hello world', 'session-123');
     });
 
-    // Check loading state (it might be false by now if the stream finished quickly in the mock)
-    // But we can check if fetch was called
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
       method: 'POST',
@@ -52,7 +49,7 @@ describe('useChat', () => {
     const { result } = renderHook(() => useChat());
 
     await act(async () => {
-      result.current.send('User question');
+      result.current.send('User question', 'session-123');
     });
 
     expect(result.current.messages).toEqual(expect.arrayContaining([
@@ -64,9 +61,8 @@ describe('useChat', () => {
   it('resets state correctly', async () => {
     const { result } = renderHook(() => useChat());
 
-    // Send a message first to change state
     await act(async () => {
-      result.current.send('Test');
+      result.current.send('Test', 'session-123');
     });
 
     await act(async () => {
@@ -76,5 +72,40 @@ describe('useChat', () => {
     expect(result.current.messages).toEqual([]);
     expect(result.current.chunks).toEqual([]);
     expect(result.current.metrics).toBeNull();
+  });
+
+  it('loadState sets messages, chunks, and metrics', () => {
+    const { result } = renderHook(() => useChat());
+
+    const messages = [{ id: '1', role: 'user' as const, content: 'Test' }];
+    const chunks = [{ id: 'c1', title: 'Doc', type: 'pdf' as const, snippet: 'text', relevance: 80 }];
+    const metrics = { retrievalTimeMs: 100, synthesisTimeMs: 200 };
+
+    act(() => {
+      result.current.loadState(messages, chunks, metrics);
+    });
+
+    expect(result.current.messages).toEqual(messages);
+    expect(result.current.chunks).toEqual(chunks);
+    expect(result.current.metrics).toEqual(metrics);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('loadState clears error state', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      result.current.send('Fail', 'session-123');
+    });
+    
+    // Error should be set
+    expect(result.current.error).toBeTruthy();
+
+    act(() => {
+      result.current.loadState([], [], null);
+    });
+
+    expect(result.current.error).toBeNull();
   });
 });

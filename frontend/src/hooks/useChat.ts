@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * useChat - Custom hook for streaming chat with RAG sources.
- * Handles Vercel AI SDK Data Stream Protocol:
- *   - `0:` text delta events (streamed to UI)
- *   - `2:` data events (sources + retrieval metrics)
+ * useChat - Streaming chat hook with session-bound updates.
+ * 
+ * Each stream is bound to the session ID where it was started.
+ * Updates only apply to that session, preventing cross-chat contamination.
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -12,17 +12,16 @@ import { Message, RetrievedChunk, MetricsData, FileType } from '@/types';
 
 // --- Types ---
 
-interface UseChatReturn {
+export interface UseChatReturn {
   messages: Message[];
   chunks: RetrievedChunk[];
   metrics: MetricsData | null;
   isLoading: boolean;
   error: string | null;
-  send: (content: string) => void;
+  send: (content: string, sessionId: string) => void;
+  loadState: (messages: Message[], chunks: RetrievedChunk[], metrics: MetricsData | null) => void;
   reset: () => void;
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  setChunks: React.Dispatch<React.SetStateAction<RetrievedChunk[]>>;
-  setMetrics: React.Dispatch<React.SetStateAction<MetricsData | null>>;
+  currentSessionId: string | null;
 }
 
 interface BackendSource {
@@ -60,14 +59,35 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
   const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
   const startTimeRef = useRef(0);
   const retrievalMsRef = useRef(0);
 
-  const send = useCallback(async (content: string) => {
+  // Load state from a persisted session
+  const loadState = useCallback((
+    loadedMessages: Message[],
+    loadedChunks: RetrievedChunk[],
+    loadedMetrics: MetricsData | null
+  ) => {
+    // Abort any ongoing stream before loading new state
+    abortRef.current?.abort();
+    setIsLoading(false);
+    setMessages(loadedMessages);
+    setChunks(loadedChunks);
+    setMetrics(loadedMetrics);
+    setError(null);
+  }, []);
+
+  const send = useCallback(async (content: string, sessionId: string) => {
     if (!content.trim() || isLoading) return;
 
+    // Abort previous request
     abortRef.current?.abort();
     abortRef.current = new AbortController();
+    
+    // Bind this stream to the session
+    sessionIdRef.current = sessionId;
+    const boundSessionId = sessionId;
 
     setError(null);
     setChunks([]);
@@ -88,7 +108,7 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })),
-          model: model, // Include model in request
+          model,
         }),
         signal: abortRef.current.signal,
       });
@@ -99,11 +119,24 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let tokenBuffer = '';
+      let lastUpdateTime = Date.now();
 
-      const updateContent = (token: string) => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + token } : m))
-        );
+      // Only update if still on the same session
+      const isBound = () => sessionIdRef.current === boundSessionId;
+
+      const flushTokens = (force = false) => {
+        const now = Date.now();
+        if (force || now - lastUpdateTime > 50) {
+          const chunk = tokenBuffer;
+          tokenBuffer = '';
+          lastUpdateTime = now;
+          if (chunk && isBound()) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))
+            );
+          }
+        }
       };
 
       const processLine = (line: string) => {
@@ -115,8 +148,9 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
 
         try {
           if (type === '0') {
-            updateContent(JSON.parse(payload));
-          } else if (type === '2') {
+            tokenBuffer += JSON.parse(payload);
+            flushTokens();
+          } else if (type === '2' && isBound()) {
             const data = JSON.parse(payload);
             const sources = Array.isArray(data) ? data : data.sources || [];
             if (data.retrieval_time) {
@@ -125,7 +159,7 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
             }
             setChunks(mapSources(sources));
           }
-        } catch { /* ignore parse errors */ }
+        } catch { /* ignore */ }
       };
 
       while (true) {
@@ -137,19 +171,27 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
         lines.forEach((l) => l.trim() && processLine(l));
       }
       if (buffer.trim()) processLine(buffer);
+      flushTokens(true);
 
       const synthesisMs = Math.max(0, Date.now() - startTimeRef.current - retrievalMsRef.current);
-      setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: synthesisMs });
+      if (isBound()) {
+        setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: synthesisMs });
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      if (sessionIdRef.current === boundSessionId) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      }
     } finally {
-      setIsLoading(false);
+      if (sessionIdRef.current === boundSessionId) {
+        setIsLoading(false);
+      }
     }
-  }, [messages, isLoading, model]); // Added model to dependency array
+  }, [messages, isLoading, model]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    sessionIdRef.current = null;
     setMessages([]);
     setChunks([]);
     setMetrics(null);
@@ -157,5 +199,15 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
     setIsLoading(false);
   }, []);
 
-  return { messages, chunks, metrics, isLoading, error, send, reset, setMessages, setChunks, setMetrics };
+  return {
+    messages,
+    chunks,
+    metrics,
+    isLoading,
+    error,
+    send,
+    loadState,
+    reset,
+    currentSessionId: sessionIdRef.current,
+  };
 }

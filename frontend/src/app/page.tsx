@@ -18,17 +18,12 @@ import { UI_TEXT } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
 
-// --- Main Page ---
 export default function Home() {
   const [selectedModel, setSelectedModel] = useState<string>('openai/gpt-oss-120b');
-  const { messages, chunks, metrics, isLoading, send, reset, setMessages, setChunks, setMetrics } = useChat({ model: selectedModel });
+  const { messages, chunks, metrics, isLoading, send, reset, loadState } = useChat({ model: selectedModel });
   
-  // State for sidebars
-  // Mobile: Drawer open/closed (overlay)
-  // Desktop: Sidebar collapsed/expanded (layout shift)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSourcesOpen, setMobileSourcesOpen] = useState(false);
-  
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [sourcesVisible, setSourcesVisible] = useState(true);
 
@@ -42,7 +37,6 @@ export default function Home() {
     setActiveSessionId,
   } = useChatHistory();
 
-  // Smart toggle handlers
   const toggleHistory = () => {
     if (window.innerWidth < 768) {
       setMobileMenuOpen(!mobileMenuOpen);
@@ -59,48 +53,46 @@ export default function Home() {
     }
   };
 
-  // Auto-save messages when they change
+  // Auto-save when state changes
   useEffect(() => {
     if (messages.length > 0 && activeSessionId) {
       saveSession(activeSessionId, messages, chunks, metrics);
     }
   }, [messages, chunks, metrics, activeSessionId, saveSession]);
 
-  // Handle selecting a session from history
+  // Handle selecting a session - loads state and aborts any current stream
   const handleSelectSession = useCallback((id: string) => {
-    const { messages: loadedMessages, chunks: loadedChunks, metrics: loadedMetrics } = loadSession(id);
-    if (loadedMessages.length > 0) {
-      setMessages(loadedMessages);
-      setChunks(loadedChunks);
-      setMetrics(loadedMetrics);
-    }
-    setMobileMenuOpen(false); // Close mobile drawer
-  }, [loadSession, setMessages, setChunks, setMetrics]);
+    const { messages: m, chunks: c, metrics: met } = loadSession(id);
+    loadState(m, c, met); // This aborts current stream
+    setMobileMenuOpen(false);
+  }, [loadSession, loadState]);
 
-  // Handle starting a new chat
+  // Handle new chat
   const handleNewChat = useCallback(() => {
     reset();
     const newId = createSession();
     setActiveSessionId(newId);
-    setMobileMenuOpen(false); // Close mobile drawer
+    setMobileMenuOpen(false);
   }, [reset, createSession, setActiveSessionId]);
 
-  // Handle deleting a session
+  // Handle delete
   const handleDeleteSession = useCallback((id: string) => {
     deleteSession(id);
     if (id === activeSessionId) {
       reset();
+      const newId = createSession();
+      setActiveSessionId(newId);
     }
-  }, [deleteSession, activeSessionId, reset]);
+  }, [deleteSession, activeSessionId, reset, createSession, setActiveSessionId]);
 
-  // Initialize with a session ID if none exists
+  // Initialize session
   useEffect(() => {
     if (!activeSessionId && messages.length === 0) {
       createSession();
     }
   }, [activeSessionId, messages.length, createSession]);
 
-  // Close mobile drawers on escape key
+  // Escape closes drawers
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -111,6 +103,13 @@ export default function Home() {
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, []);
+
+  // Send with session ID binding
+  const handleSend = useCallback((content: string) => {
+    if (activeSessionId) {
+      send(content, activeSessionId);
+    }
+  }, [activeSessionId, send]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -123,7 +122,6 @@ export default function Home() {
       />
 
       <main className="flex-1 flex overflow-hidden relative">
-        {/* Mobile Overlay Backdrop */}
         {(mobileMenuOpen || mobileSourcesOpen) && (
           <div
             data-testid="mobile-overlay"
@@ -136,15 +134,11 @@ export default function Home() {
           />
         )}
 
-        {/* Chat History Sidebar (Left) */}
         <div
           className={cn(
-            // Base styles
             'z-50 flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border bg-surface',
-            // Mobile: absolute overlay, hidden by default
             'fixed inset-y-0 left-0 md:static',
              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-             // Desktop: Width transition
              historyCollapsed ? 'md:w-12' : 'md:w-64'
           )}
         >
@@ -157,46 +151,38 @@ export default function Home() {
             onClose={() => setMobileMenuOpen(false)}
             showCloseButton={mobileMenuOpen}
             isCollapsed={historyCollapsed}
-            className="border-none" // Parent handles border
+            className="border-none"
           />
         </div>
 
-        {/* Chat Area */}
         <section className="flex-1 flex flex-col bg-background min-w-0">
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
             {messages.length === 0 && <EmptyState />}
             {messages.map((msg) => {
-              // Don't render empty assistant messages
               if (msg.role === 'assistant' && !msg.content) return null;
               return <ChatBubble key={msg.id} message={msg} />;
             })}
             {isLoading && <TypingIndicator />}
           </div>
-          <ChatInput onSend={send} disabled={isLoading}>
-            {messages.length === 0 && <SuggestedActions onAppend={send} />}
+          <ChatInput onSend={handleSend} disabled={isLoading}>
+            {messages.length === 0 && <SuggestedActions onAppend={handleSend} />}
           </ChatInput>
         </section>
 
-        {/* Retrieval Panel (Right) */}
         <aside
           className={cn(
-            // Base styles
             'z-50 bg-surface border-l border-border overflow-y-auto flex-shrink-0 transition-all duration-300 ease-in-out',
-            // Desktop: Toggles width/visibility
             'hidden lg:block',
             sourcesVisible ? 'lg:w-[400px]' : 'lg:w-0 lg:border-none',
-            // Mobile: absolute overlay when open
             mobileSourcesOpen && 'fixed inset-y-0 right-0 w-full sm:w-[400px] block border-l'
           )}
         >
           <div className={cn("h-full w-full", !sourcesVisible && "lg:hidden")}>
              <div className="p-4 md:p-5">
-              {/* Sources Header */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">
                   {UI_TEXT.SOURCES_TITLE}
                 </h2>
-                {/* Mobile close button */}
                 <button
                   onClick={() => setMobileSourcesOpen(false)}
                   className="lg:hidden p-2 rounded-lg hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200 text-secondary-text"

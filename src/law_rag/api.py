@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from law_rag.config import settings
 from law_rag.ingestion import DocumentIngestionPipeline
 from law_rag.query_engine import RAGQueryEngine
 
@@ -191,7 +192,8 @@ async def chat_stream(req: QueryRequest):
 
     def generate():
         try:
-            print(f"👉 Starting stream for query: {last_msg[:50]}... (Model: {req.model or 'default'})")
+            print(f"👉 [Backend] Received model from request: '{req.model}'")
+            print(f"👉 [Backend] Starting stream for query: {last_msg[:50]}... (Using Model: {req.model or settings.groq.model})")
             yield from _get_engine().stream_chat(last_msg, history, model=req.model)
             print("✅ Stream completed successfully")
         except Exception as e:

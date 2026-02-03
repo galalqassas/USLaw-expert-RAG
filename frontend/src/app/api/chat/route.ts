@@ -16,6 +16,7 @@ interface IncomingMessage {
 
 interface RequestBody {
   messages?: IncomingMessage[];
+  model?: string;
 }
 
 // --- Route ---
@@ -41,13 +42,15 @@ export async function POST(req: NextRequest) {
       return { role: m.role, content };
     }) || [];
 
+    console.log('[API Route] Forwarding to backend with model:', body.model);
+
     // Forward request to Python backend
     const response = await fetch(`${backendUrl}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, model: body.model }),
     });
 
     if (!response.ok) {

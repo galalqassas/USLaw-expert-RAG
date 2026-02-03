@@ -79,13 +79,23 @@ describe('ChatInput', () => {
     expect(mockOnSend).toHaveBeenCalledWith('Trimmed message');
   });
 
-  it('disables input and button when disabled prop is true', () => {
+  it('allows typing but disables send button when disabled prop is true', () => {
     render(<ChatInput onSend={mockOnSend} disabled />);
     
     const input = screen.getByTestId('chat-input');
     const sendButton = screen.getByTestId('send-button');
     
-    expect(input).toBeDisabled();
+    // Input should remain enabled for typing
+    expect(input).not.toBeDisabled();
+    // But send button should be disabled
     expect(sendButton).toBeDisabled();
+    
+    // User can still type
+    fireEvent.change(input, { target: { value: 'Typing while loading' } });
+    expect(input).toHaveValue('Typing while loading');
+    
+    // But cannot send
+    fireEvent.click(sendButton);
+    expect(mockOnSend).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,15 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { RetrievalCard } from '@/components/RetrievalCard';
 import { RetrievedChunk } from '@/types';
 import { UI_TEXT } from '@/lib/constants';
+
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  ChevronDown: () => <span data-testid="chevron-down" />,
+  ChevronUp: () => <span data-testid="chevron-up" />,
+  FileText: () => <span data-testid="file-text" />,
+  Globe: () => <span data-testid="globe" />,
+}));
 
 describe('RetrievalCard', () => {
   const mockChunk: RetrievedChunk = {
@@ -38,11 +46,18 @@ describe('RetrievalCard', () => {
     expect(screen.getByTestId('file-badge-pdf')).toBeInTheDocument();
   });
 
-  it('calls onExpand with chunk id when clicked', () => {
+  it('calls onExpand with chunk id when clicked', async () => {
     render(<RetrievalCard chunk={mockChunk} onExpand={mockOnExpand} />);
     
-    const card = screen.getByTestId(`retrieval-card-${mockChunk.id}`);
-    fireEvent.click(card);
+    const expandButton = screen.getByTestId('expand-button');
+
+    // Initial state
+    expect(expandButton).toHaveTextContent(UI_TEXT.EXPAND_BUTTON);
+
+    // Click expand button triggers callback
+    await act(async () => {
+      fireEvent.click(expandButton);
+    });
     
     expect(mockOnExpand).toHaveBeenCalledWith(mockChunk.id);
   });

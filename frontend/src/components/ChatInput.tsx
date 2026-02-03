@@ -43,8 +43,7 @@ export function ChatInput({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          disabled={disabled}
-          className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-secondary-text disabled:opacity-50 min-w-0"
+          className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-secondary-text min-w-0"
           data-testid="chat-input"
         />
         <button

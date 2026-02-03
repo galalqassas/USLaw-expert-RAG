@@ -1,10 +1,22 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import Home from '@/app/page';
 
-const mockUseChat = jest.fn();
+const mockChatState = {
+  messages: [] as { id: string; role: string; content: string }[],
+  chunks: [],
+  metrics: null,
+  isLoading: false,
+  error: null,
+};
 
 jest.mock('@/hooks', () => ({
-  useChat: () => mockUseChat(),
+  useChat: () => ({
+    ...mockChatState,
+    send: jest.fn(),
+    reset: jest.fn(),
+    loadState: jest.fn(),
+    currentSessionId: 'test-session-id',
+  }),
   useChatHistory: jest.fn(() => ({
     sessions: [],
     activeSessionId: 'test-session-id',
@@ -75,18 +87,11 @@ const resizeWindow = (width: number) => {
 
 describe('Home Page', () => {
   beforeEach(() => {
-    mockUseChat.mockReturnValue({
-      messages: [],
-      chunks: [],
-      metrics: null,
-      isLoading: false,
-      error: null,
-      send: jest.fn(),
-      reset: jest.fn(),
-      setMessages: jest.fn(),
-      setChunks: jest.fn(),
-      setMetrics: jest.fn(),
-    });
+    mockChatState.messages = [];
+    mockChatState.chunks = [];
+    mockChatState.metrics = null;
+    mockChatState.isLoading = false;
+    mockChatState.error = null;
   });
 
   it('renders empty state initially', () => {
@@ -122,19 +127,7 @@ describe('Home Page', () => {
   });
 
   it('renders SuggestedActions when messages are empty', () => {
-    mockUseChat.mockReturnValue({
-      messages: [],
-      chunks: [],
-      metrics: null,
-      isLoading: false,
-      error: null,
-      send: jest.fn(),
-      reset: jest.fn(),
-      setMessages: jest.fn(),
-      setChunks: jest.fn(),
-      setMetrics: jest.fn(),
-    });
-
+    mockChatState.messages = [];
     render(<Home />);
     
     // Check for a known suggested action text from SuggestedActions component
@@ -142,19 +135,7 @@ describe('Home Page', () => {
   });
 
   it('does not render SuggestedActions when messages exist', () => {
-    mockUseChat.mockReturnValue({
-      messages: [{ id: '1', role: 'user', content: 'Hello' }],
-      chunks: [],
-      metrics: null,
-      isLoading: false,
-      error: null,
-      send: jest.fn(),
-      reset: jest.fn(),
-      setMessages: jest.fn(),
-      setChunks: jest.fn(),
-      setMetrics: jest.fn(),
-    });
-
+    mockChatState.messages = [{ id: '1', role: 'user', content: 'Hello' }];
     render(<Home />);
     
     expect(screen.queryByText('What works are eligible for copyright protection?')).not.toBeInTheDocument();

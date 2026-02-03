@@ -1,4 +1,5 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useState } from 'react';
 import { RetrievedChunk } from '@/types';
 import { FileTypeBadge } from './FileTypeBadge';
 import { RELEVANCE_THRESHOLDS, UI_TEXT } from '@/lib/constants';
@@ -15,13 +16,19 @@ function getRelevanceColorClass(relevance: number): string {
 }
 
 export function RetrievalCard({ chunk, onExpand }: RetrievalCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const relevanceClass = getRelevanceColorClass(chunk.relevance);
+
+  const handleClick = () => {
+    setIsExpanded(!isExpanded);
+    onExpand?.(chunk.id);
+  };
 
   return (
     <div
-      className="p-4 bg-background border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group"
+      className={`p-4 bg-background border border-border rounded-xl shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group ${isExpanded ? 'border-primary/30 ring-1 ring-primary/20' : ''}`}
       data-testid={`retrieval-card-${chunk.id}`}
-      onClick={() => onExpand?.(chunk.id)}
+      onClick={handleClick}
     >
       {/* Card Header */}
       <div className="flex items-start justify-between mb-2">
@@ -40,16 +47,22 @@ export function RetrievalCard({ chunk, onExpand }: RetrievalCardProps) {
       </div>
 
       {/* Snippet */}
-      <p className="text-xs text-secondary-text leading-relaxed line-clamp-3 mb-2">
+      <p className={`text-xs text-secondary-text leading-relaxed mb-2 ${isExpanded ? '' : 'line-clamp-3'}`}>
         {chunk.snippet}
       </p>
 
       {/* Expand Button */}
       <button 
-        className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+        type="button"
+        className="flex items-center gap-1 text-xs text-primary bg-transparent border-none p-0 cursor-pointer"
         data-testid="expand-button"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleClick();
+        }}
       >
-        {UI_TEXT.EXPAND_BUTTON} <ChevronDown className="w-3 h-3" />
+        {isExpanded ? "Collapse" : UI_TEXT.EXPAND_BUTTON} 
+        {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
       </button>
     </div>
   );
