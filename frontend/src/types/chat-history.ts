@@ -4,7 +4,7 @@
  * Type definitions for the chat history feature.
  */
 
-import { Message } from './index';
+import { Message, RetrievedChunk, MetricsData } from './index';
 
 /** Represents a saved chat conversation */
 export interface ChatSession {
@@ -14,6 +14,10 @@ export interface ChatSession {
   title: string;
   /** All messages in this conversation */
   messages: Message[];
+  /** Retrieved sources/chunks context for this session */
+  chunks: RetrievedChunk[];
+  /** Retrieval and synthesis metrics */
+  metrics?: MetricsData;
   /** ISO timestamp when the chat was created */
   createdAt: string;
   /** ISO timestamp when the chat was last updated */

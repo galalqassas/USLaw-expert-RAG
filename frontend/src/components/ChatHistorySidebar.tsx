@@ -69,7 +69,7 @@ const ChatHistoryItem = memo(function ChatHistoryItem({
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
       className={cn(
         'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors',
-        'hover:bg-surface-hover',
+        'hover:bg-primary/10 hover:text-primary',
         isActive && 'bg-primary/10 text-primary'
       )}
     >
@@ -123,7 +123,7 @@ export const ChatHistorySidebar = memo(function ChatHistorySidebar({
       <aside className={cn("w-full border-r border-border bg-surface flex flex-col items-center py-4", className)}>
         <button
           onClick={onNewChat}
-          className="p-2 rounded-lg hover:bg-surface-hover transition-colors"
+          className="p-2 rounded-lg text-secondary-text hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200"
           aria-label="New chat"
           title="New chat"
         >
@@ -141,7 +141,7 @@ export const ChatHistorySidebar = memo(function ChatHistorySidebar({
           onClick={onNewChat}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 
                      bg-primary text-primary-foreground rounded-lg font-medium
-                     hover:bg-primary/90 transition-colors"
+                     hover:bg-primary/90 active:scale-95 transition-all duration-200"
         >
           <Plus className="w-4 h-4" />
           New Chat
@@ -150,7 +150,7 @@ export const ChatHistorySidebar = memo(function ChatHistorySidebar({
         {showCloseButton && onClose && (
           <button
             onClick={onClose}
-            className="md:hidden p-2 rounded-lg hover:bg-surface-hover transition-colors"
+            className="md:hidden p-2 rounded-lg hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200"
             aria-label="Close sidebar"
           >
             <X className="w-5 h-5" />

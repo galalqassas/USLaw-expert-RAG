@@ -8,7 +8,7 @@ jest.mock('@/hooks', () => ({
   useChatHistory: jest.fn(() => ({
     sessions: [],
     activeSessionId: 'test-session-id',
-    loadSession: jest.fn(() => []),
+    loadSession: jest.fn(() => ({ messages: [], chunks: [], metrics: null })),
     saveSession: jest.fn(),
     deleteSession: jest.fn(),
     createSession: jest.fn(() => 'new-session-id'),
@@ -57,7 +57,7 @@ jest.mock('@/components/ChatHistorySidebar', () => ({
 
 // Mock Header component to avoid lucide-react import issues
 jest.mock('@/components/Header', () => ({
-  Header: ({ onNewChat, modelSelector, onMenuClick, onSourcesClick }: any) => (
+  Header: ({ onNewChat, modelSelector, onMenuClick, onSourcesClick }: { onNewChat: () => void; modelSelector: React.ReactNode; onMenuClick: () => void; onSourcesClick: () => void; }) => (
     <header data-testid="header">
       <h1 data-testid="app-title">US Law Expert</h1>
       {modelSelector}
@@ -84,6 +84,8 @@ describe('Home Page', () => {
       send: jest.fn(),
       reset: jest.fn(),
       setMessages: jest.fn(),
+      setChunks: jest.fn(),
+      setMetrics: jest.fn(),
     });
   });
 
@@ -129,6 +131,8 @@ describe('Home Page', () => {
       send: jest.fn(),
       reset: jest.fn(),
       setMessages: jest.fn(),
+      setChunks: jest.fn(),
+      setMetrics: jest.fn(),
     });
 
     render(<Home />);
@@ -147,6 +151,8 @@ describe('Home Page', () => {
       send: jest.fn(),
       reset: jest.fn(),
       setMessages: jest.fn(),
+      setChunks: jest.fn(),
+      setMetrics: jest.fn(),
     });
 
     render(<Home />);

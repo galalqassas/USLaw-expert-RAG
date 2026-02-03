@@ -36,8 +36,8 @@ describe('FileTypeBadge', () => {
     render(<FileTypeBadge type="web" />);
     
     const badge = screen.getByTestId('file-badge-web');
-    expect(badge).toHaveClass('bg-green-100');
-    expect(badge).toHaveClass('text-green-700');
+    expect(badge).toHaveClass('bg-neutral-900');
+    expect(badge).toHaveClass('text-neutral-50');
     expect(screen.getByTestId('icon-globe')).toBeInTheDocument();
   });
 });

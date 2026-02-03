@@ -45,14 +45,19 @@ describe('useChatHistory', () => {
     const mockMessages = [{ id: '1', role: 'user', content: 'Hi' }];
     (storage.getSession as jest.Mock).mockReturnValue({
       id: '1',
-      messages: mockMessages
+      id: '1',
+      messages: mockMessages,
+      chunks: [],
+      metrics: null
     });
 
     const { result } = renderHook(() => useChatHistory());
 
     act(() => {
-      const msgs = result.current.loadSession('1');
-      expect(msgs).toEqual(mockMessages);
+      const data = result.current.loadSession('1');
+      expect(data.messages).toEqual(mockMessages);
+      expect(data.chunks).toEqual([]);
+      expect(data.metrics).toBeNull();
     });
 
     expect(result.current.activeSessionId).toBe('1');
@@ -62,7 +67,7 @@ describe('useChatHistory', () => {
     const { result } = renderHook(() => useChatHistory());
     
     act(() => {
-      result.current.saveSession('1', []);
+      result.current.saveSession('1', [], [], null);
     });
     
     expect(storage.saveSession).toHaveBeenCalled();

@@ -21,7 +21,7 @@ import { X } from 'lucide-react';
 // --- Main Page ---
 export default function Home() {
   const [selectedModel, setSelectedModel] = useState<string>('openai/gpt-oss-120b');
-  const { messages, chunks, metrics, isLoading, send, reset, setMessages } = useChat({ model: selectedModel });
+  const { messages, chunks, metrics, isLoading, send, reset, setMessages, setChunks, setMetrics } = useChat({ model: selectedModel });
   
   // State for sidebars
   // Mobile: Drawer open/closed (overlay)
@@ -62,18 +62,20 @@ export default function Home() {
   // Auto-save messages when they change
   useEffect(() => {
     if (messages.length > 0 && activeSessionId) {
-      saveSession(activeSessionId, messages);
+      saveSession(activeSessionId, messages, chunks, metrics);
     }
-  }, [messages, activeSessionId, saveSession]);
+  }, [messages, chunks, metrics, activeSessionId, saveSession]);
 
   // Handle selecting a session from history
   const handleSelectSession = useCallback((id: string) => {
-    const loadedMessages = loadSession(id);
+    const { messages: loadedMessages, chunks: loadedChunks, metrics: loadedMetrics } = loadSession(id);
     if (loadedMessages.length > 0) {
       setMessages(loadedMessages);
+      setChunks(loadedChunks);
+      setMetrics(loadedMetrics);
     }
     setMobileMenuOpen(false); // Close mobile drawer
-  }, [loadSession, setMessages]);
+  }, [loadSession, setMessages, setChunks, setMetrics]);
 
   // Handle starting a new chat
   const handleNewChat = useCallback(() => {
@@ -197,7 +199,7 @@ export default function Home() {
                 {/* Mobile close button */}
                 <button
                   onClick={() => setMobileSourcesOpen(false)}
-                  className="lg:hidden p-2 rounded-lg hover:bg-surface-hover transition-colors text-secondary-text"
+                  className="lg:hidden p-2 rounded-lg hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200 text-secondary-text"
                   aria-label="Close sources panel"
                 >
                   <X className="w-5 h-5" />

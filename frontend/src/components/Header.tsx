@@ -32,7 +32,7 @@ export function Header({
         {/* Toggle Menu Button (History) */}
         <button
           onClick={onMenuClick}
-          className="p-2 rounded-lg hover:bg-surface transition-colors flex-shrink-0 text-secondary-text hover:text-foreground"
+          className="p-2 rounded-lg hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200 flex-shrink-0 text-secondary-text"
           aria-label="Toggle sidebar"
           title="Toggle sidebar"
           data-testid="menu-toggle"
@@ -53,7 +53,7 @@ export function Header({
         {onNewChat && (
           <button 
             onClick={onNewChat} 
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-lg transition-colors" 
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 rounded-lg transition-all duration-200" 
             title="Start a new chat"
           >
             <PlusCircle className="w-4 h-4" /> New Chat
@@ -65,7 +65,7 @@ export function Header({
         {/* Toggle Sources Button */}
         <button
           onClick={onSourcesClick}
-          className="p-2 rounded-lg hover:bg-surface transition-colors relative text-secondary-text hover:text-foreground"
+          className="p-2 rounded-lg hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200 relative text-secondary-text"
           aria-label="Toggle sources"
           title="Toggle sources"
           data-testid="sources-toggle"
@@ -79,7 +79,7 @@ export function Header({
         {/* Theme Toggle */}
         <button 
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
-          className="p-2 rounded-lg hover:bg-surface transition-colors text-secondary-text hover:text-foreground" 
+          className="p-2 rounded-lg hover:bg-primary/10 hover:text-primary active:scale-95 transition-all duration-200 text-secondary-text" 
           aria-label="Toggle dark mode" 
           data-testid="dark-mode-toggle"
         >

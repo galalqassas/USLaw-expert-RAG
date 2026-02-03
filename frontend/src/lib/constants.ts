@@ -37,8 +37,8 @@ export const FILE_TYPE_CONFIG = {
   },
   web: {
     label: 'WEB',
-    bgLight: 'bg-green-100',
-    textLight: 'text-green-700',
+    bgLight: 'bg-neutral-900',
+    textLight: 'text-neutral-50',
     bgDark: 'dark:bg-green-900/30',
     textDark: 'dark:text-green-400',
   },
