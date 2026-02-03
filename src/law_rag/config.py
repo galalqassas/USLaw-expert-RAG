@@ -109,7 +109,7 @@ class Settings:
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
 
     # RAG settings
-    similarity_top_k: int = 7  # Retrieve more chunks for better coverage
+    similarity_top_k: int = 5  # Retrieve more chunks for better coverage
     response_mode: str = "compact"  # LlamaIndex response synthesis mode
     chunk_preview_length: int = 150  # Characters to show in chunk preview
     system_prompt: str = field(default=SYSTEM_PROMPT)

@@ -77,14 +77,14 @@ app = FastAPI(
     Expert RAG system for US Copyright Law (Title 17). 
     
     Provides endpoints for:
-    - **Querying**: Ask questions about copyright law and get cited answers.
-    - **Streaming Chat**: Real-time conversational interface.
-    - **Ingestion**: Indexing of legal documents.
+    - Querying: Ask questions about copyright law and get cited answers.
+    - Streaming Chat: Real-time conversational interface.
+    - Ingestion: Indexing of legal documents.
     """,
     version="1.0.0",
     contact={
         "name": "US Law Expert RAG Team",
-        "url": "https://github.com/galalqassas/USLaw-expert-RAG",
+        "url": "https://us-law-expert-frontend.vercel.app/",
     },
     license_info={
         "name": "MIT",

@@ -1,7 +1,7 @@
-// Mock react-markdown BEFORE any imports
-jest.mock('react-markdown', () => ({
+// Mock streamdown BEFORE any imports
+jest.mock('streamdown', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => <div data-testid="markdown">{children}</div>,
+  Streamdown: ({ children }: { children: React.ReactNode }) => <div data-testid="markdown">{children}</div>,
 }));
 
 // Mock MessageReasoning to avoid complex dependency chain
@@ -11,11 +11,14 @@ jest.mock('../MessageReasoning', () => ({
   ),
 }));
 
-// Mock remark-gfm
-jest.mock('remark-gfm', () => () => {});
+
+// Mock lucide-react
+jest.mock('lucide-react', () => ({
+  RotateCcw: () => <svg data-testid="icon-rotate-ccw" />,
+}));
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatBubble } from '../ChatBubble';
 import { Message } from '@/types';
 
@@ -82,4 +85,36 @@ describe('ChatBubble', () => {
     expect(screen.queryByTestId('mock-message-reasoning')).not.toBeInTheDocument();
     expect(screen.getByText('Just an answer.')).toBeInTheDocument();
   });
+
+  it('renders reload button when isLast is true and onReload is provided for assistant message', () => {
+    const onReload = jest.fn();
+    render(<ChatBubble message={assistantMessage} isLast={true} onReload={onReload} />);
+    
+    const reloadBtn = screen.getByTitle('Regenerate response');
+    expect(reloadBtn).toBeInTheDocument();
+    
+    fireEvent.click(reloadBtn);
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render reload button if isLast is false', () => {
+    const onReload = jest.fn();
+    render(<ChatBubble message={assistantMessage} isLast={false} onReload={onReload} />);
+    
+    expect(screen.queryByTitle('Regenerate response')).not.toBeInTheDocument();
+  });
+
+  it('does not render reload button if onReload is undefined', () => {
+    render(<ChatBubble message={assistantMessage} isLast={true} />);
+    
+    expect(screen.queryByTitle('Regenerate response')).not.toBeInTheDocument();
+  });
+
+  it('does not render reload button for user messages', () => {
+    const onReload = jest.fn();
+    render(<ChatBubble message={userMessage} isLast={true} onReload={onReload} />);
+    
+    expect(screen.queryByTitle('Regenerate response')).not.toBeInTheDocument();
+  });
 });
+

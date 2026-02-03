@@ -41,6 +41,7 @@ jest.mock('next-themes', () => ({
 jest.mock('lucide-react', () => ({
   X: () => <svg data-testid="icon-x" />,
   Send: () => <svg data-testid="icon-send" />,
+  AlertTriangle: () => <svg data-testid="icon-alert-triangle" />,
 }));
 
 // Mock ChatBubble to avoid ESM issues with react-markdown
@@ -139,6 +140,13 @@ describe('Home Page', () => {
     render(<Home />);
     
     expect(screen.queryByText('What works are eligible for copyright protection?')).not.toBeInTheDocument();
+  });
+
+  it('renders error message when present', () => {
+    mockChatState.error = 'Too many requests. Please wait a moment.';
+    render(<Home />);
+    
+    expect(screen.getByText('Too many requests. Please wait a moment.')).toBeInTheDocument();
   });
 
   describe('Responsive Layout', () => {

@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { Message, RetrievedChunk, MetricsData, FileType } from '@/types';
+import { getFriendlyErrorMessage } from '@/lib/utils';
 
 // --- Types ---
 
@@ -21,6 +22,7 @@ export interface UseChatReturn {
   send: (content: string, sessionId: string) => void;
   loadState: (messages: Message[], chunks: RetrievedChunk[], metrics: MetricsData | null) => void;
   reset: () => void;
+  reload: (sessionId: string) => void;
   currentSessionId: string | null;
 }
 
@@ -146,20 +148,30 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
         const type = line.slice(0, colonIdx);
         const payload = line.slice(colonIdx + 1);
 
+        let data;
         try {
-          if (type === '0') {
-            tokenBuffer += JSON.parse(payload);
-            flushTokens();
-          } else if (type === '2' && isBound()) {
-            const data = JSON.parse(payload);
-            const sources = Array.isArray(data) ? data : data.sources || [];
-            if (data.retrieval_time) {
-              retrievalMsRef.current = Math.round(data.retrieval_time * 1000);
-              setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: 0 });
-            }
-            setChunks(mapSources(sources));
+          data = JSON.parse(payload);
+        } catch {
+          return; // Ignore malformed lines
+        }
+
+        if (type === '0') {
+          // Check if this is a masked backend error
+          if (typeof data === 'string' && data.includes('Error:**')) {
+            // Extract the raw error message (remove the markdown prefix)
+            const cleanError = data.replace(/.*\*\*.*Error:\*\*\s*/, '').trim();
+            throw new Error(cleanError);
           }
-        } catch { /* ignore */ }
+          tokenBuffer += data;
+          flushTokens();
+        } else if (type === '2' && isBound()) {
+          const sources = Array.isArray(data) ? data : data.sources || [];
+          if (data.retrieval_time) {
+            retrievalMsRef.current = Math.round(data.retrieval_time * 1000);
+            setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: 0 });
+          }
+          setChunks(mapSources(sources));
+        }
       };
 
       while (true) {
@@ -180,7 +192,7 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
       if (sessionIdRef.current === boundSessionId) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(getFriendlyErrorMessage(err));
       }
     } finally {
       if (sessionIdRef.current === boundSessionId) {
@@ -199,6 +211,25 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
     setIsLoading(false);
   }, []);
 
+  /**
+   * Reload (regenerate) the last assistant response.
+   * Removes the last assistant message and re-sends the last user prompt.
+   */
+  const reload = useCallback((sessionId: string) => {
+    // Find the last user message
+    const lastUserIdx = [...messages].reverse().findIndex((m) => m.role === 'user');
+    if (lastUserIdx === -1) return;
+
+    const userIdx = messages.length - 1 - lastUserIdx;
+    const lastUserContent = messages[userIdx].content;
+
+    // Remove messages after and including the last user message
+    setMessages((prev) => prev.slice(0, userIdx));
+
+    // Re-send the last user prompt (send will add it back)
+    setTimeout(() => send(lastUserContent, sessionId), 0);
+  }, [messages, send]);
+
   return {
     messages,
     chunks,
@@ -208,6 +239,7 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
     send,
     loadState,
     reset,
+    reload,
     currentSessionId: sessionIdRef.current,
   };
 }

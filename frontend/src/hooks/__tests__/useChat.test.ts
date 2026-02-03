@@ -1,3 +1,8 @@
+
+// Polyfill for TextEncoder/TextDecoder in Jest environment
+import { TextEncoder, TextDecoder } from 'util';
+Object.assign(global, { TextEncoder, TextDecoder });
+
 import { renderHook, act } from '@testing-library/react';
 import { useChat } from '@/hooks/useChat';
 
@@ -107,5 +112,73 @@ describe('useChat', () => {
     });
 
     expect(result.current.error).toBeNull();
+  });
+  it('reload removes last assistant message and resends user prompt', async () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => useChat());
+
+    // Setup initial state: User message -> Assistant message
+    await act(async () => {
+      // Direct state manipulation isn't exposed, so we simulate the flow
+      // 1. Send user message
+      result.current.send('User Question', 'session-123');
+    });
+
+    // Simulate completion of first request/response
+    await act(async () => {
+       // Ideally we'd wait for mocks, but for this test we're simulating state via send's effects
+       // Check state after send
+    });
+
+    expect(result.current.messages).toHaveLength(2); // User + Assistant
+
+    // 2. Trigger reload
+    await act(async () => {
+      result.current.reload('session-123');
+    });
+
+    // Should remove the assistant message AND the user message (to avoid duplication when send() adds it back)
+    expect(result.current.messages).toHaveLength(0);
+
+    // Should trigger send after timeout
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
+    // Should have added a new assistant message (loading state)
+    expect(result.current.messages).toHaveLength(2);
+    expect(mockFetch).toHaveBeenCalledTimes(2); // Initial send + reload send
+    
+    jest.useRealTimers();
+  });
+
+  it('detects and handles masked backend errors in stream', async () => {
+    // Mock backend sending 200 OK but with error text
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers(),
+      body: {
+        getReader: () => ({
+          read: jest.fn()
+            // Simulate chunk with error pattern
+            .mockResolvedValueOnce({ 
+              done: false, 
+              value: new TextEncoder().encode(`0:${JSON.stringify("\n\n**⚠️ Error:** Rate limit reached")}`) 
+            })
+            .mockResolvedValueOnce({ done: true }),
+        }),
+      },
+    });
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      result.current.send('Trigger Error', 'session-123');
+    });
+
+    expect(result.current.error).toBe('Too many requests. Please wait a moment and try again.');
+    // Should NOT have added the error text to messages
+    const lastMsg = result.current.messages[result.current.messages.length - 1];
+    expect(lastMsg.content).toBe('');
   });
 });
