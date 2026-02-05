@@ -74,6 +74,44 @@ describe('useChatHistory', () => {
     expect(storage.getSessionSummaries).toHaveBeenCalled(); // Refreshes list
   });
 
+  it('updates timestamp only when content changes', () => {
+    const originalTime = '2025-01-01T10:00:00.000Z';
+    const mockSession = { 
+      id: '1', 
+      messages: [{ id: '1', role: 'user', content: 'Hi' }], 
+      chunks: [], 
+      metrics: null,
+      title: 'Hi',
+      createdAt: originalTime,
+      updatedAt: originalTime
+    };
+
+    (storage.getSession as jest.Mock).mockReturnValue(mockSession);
+    const { result } = renderHook(() => useChatHistory());
+
+    // 1. Save with SAME content -> Should keep original timestamp
+    act(() => {
+      // @ts-expect-error - Mock session messages type mismatch in tests
+      result.current.saveSession('1', mockSession.messages, [], null);
+    });
+
+    expect(storage.saveSession).toHaveBeenCalledWith(expect.objectContaining({
+      id: '1',
+      updatedAt: originalTime
+    }));
+
+    // 2. Save with NEW content -> Should update timestamp
+    const newMessages = [...mockSession.messages, { id: '2', role: 'assistant', content: 'Hello' }];
+    
+    act(() => {
+        // @ts-expect-error - TS might complain about message type match in test file if types aren't perfectly aligned
+      result.current.saveSession('1', newMessages, [], null);
+    });
+
+    const lastCallArg = (storage.saveSession as jest.Mock).mock.calls[1][0];
+    expect(lastCallArg.updatedAt).not.toBe(originalTime);
+  });
+
   it('deletes session', () => {
     const { result } = renderHook(() => useChatHistory());
     

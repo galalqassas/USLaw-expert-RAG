@@ -56,6 +56,11 @@ class GroqReasoningLLM(OpenAI):
         
         # Ensure stream is True
         all_kwargs["stream"] = True
+
+        # Ensure include_reasoning is passed via extra_body (required for OpenAI client)
+        if "extra_body" not in all_kwargs:
+            all_kwargs["extra_body"] = {}
+        all_kwargs["extra_body"]["include_reasoning"] = True
         
         # Prepare messages
         message_dicts = [

@@ -99,7 +99,7 @@ export function saveSession(session: ChatSession): void {
   const sessionToSave: ChatSession = {
     ...session,
     title: session.title || generateTitle(session.messages),
-    updatedAt: new Date().toISOString(),
+    updatedAt: session.updatedAt || new Date().toISOString(),
   };
 
   if (existingIndex >= 0) {

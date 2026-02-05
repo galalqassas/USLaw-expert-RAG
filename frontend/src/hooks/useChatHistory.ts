@@ -56,6 +56,12 @@ export function useChatHistory(): UseChatHistoryReturn {
   const saveSession = useCallback(
     (id: string, messages: Message[], chunks: RetrievedChunk[], metrics: MetricsData | null, title?: string) => {
       const existing = storage.getSession(id);
+      
+      // Only update timestamp if content actually changed
+      const contentChanged = !existing || 
+        existing.messages.length !== messages.length ||
+        (messages.length > 0 && existing.messages[existing.messages.length - 1]?.content !== messages[messages.length - 1]?.content);
+
       const session: ChatSession = {
         id,
         title: title || existing?.title || '',
@@ -63,7 +69,7 @@ export function useChatHistory(): UseChatHistoryReturn {
         chunks,
         metrics: metrics || undefined,
         createdAt: existing?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        updatedAt: contentChanged ? new Date().toISOString() : (existing?.updatedAt || new Date().toISOString()),
       };
       storage.saveSession(session);
       refresh();

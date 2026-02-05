@@ -66,6 +66,16 @@ describe('ChatStorage', () => {
     // difficult to test precisely without mocking Date, but checking type is sufficient for now
   });
 
+  it('respects provided updatedAt if present', () => {
+    const fixedTime = '2025-01-01T12:00:00.000Z';
+    const sessionWithTime = { ...mockSession, updatedAt: fixedTime };
+    
+    storage.saveSession(sessionWithTime);
+    const retrieved = storage.getSession(mockSession.id);
+    
+    expect(retrieved?.updatedAt).toBe(fixedTime);
+  });
+
   it('deletes a session', () => {
     storage.saveSession(mockSession);
     storage.deleteSession('test-session-1');

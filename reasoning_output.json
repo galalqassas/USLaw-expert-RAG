@@ -1,0 +1,9 @@
+{
+  "content": "**Fair use** is a limited exception in U.S. copyright law (17 U.S.C. § 107) that allows copying or using copyrighted material without the owner’s permission when the use is “fair.”  \n\nThe courts evaluate fairness by balancing **four statutory factors**:\n\n1. **Purpose and character of the use** – favoring non‑commercial, educational, commentary, criticism, or transformative uses (e.g., adding new meaning or value).  \n2. **Nature of the copyrighted work** – uses of factual or published works are more likely to be fair than uses of highly creative, unpublished works.  \n3. **Amount and substantiality** – the smaller and less “heart‑of‑the‑work” the portion used, the more likely it is fair; using the “quantitative” or “qualitative” core can weigh against fair use.  \n4. **Effect on the market** – if the use harms the potential market or value of the original work, it is less likely to be fair.\n\nA use that satisfies these factors—especially when it is transformative and doesn’t substitute for the original—may be deemed **fair use**. The analysis is case‑by‑case; no single factor is decisive.",
+  "reasoning": "User asks: \"What is fair use under US copyright law? Be concise.\" Need concise answer. Provide definition, four factors, purpose, etc. Keep concise.",
+  "usage": {
+    "prompt_tokens": 83,
+    "completion_tokens": 296,
+    "total_tokens": 379
+  }
+}
