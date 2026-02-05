@@ -16,7 +16,7 @@ export function SuggestedActions({ onAppend }: SuggestedActionsProps) {
         <button
           key={suggestedAction}
           onClick={() => onAppend(suggestedAction)}
-          className="flex w-full items-center justify-start rounded-lg border border-border bg-surface p-3 text-sm text-foreground transition-all duration-200 hover:bg-primary/10 hover:text-foreground hover:border-primary/50 hover:shadow-md active:scale-[0.99] text-left animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
+          className="flex w-full min-w-0 items-center justify-start rounded-lg border border-border bg-surface p-3 text-sm text-foreground transition-all duration-200 hover:bg-primary/10 hover:text-foreground hover:border-primary/50 hover:shadow-md active:scale-[0.99] text-left animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
           style={{ animationDelay: `${index * 50}ms` }}
         >
           <span className="truncate">{suggestedAction}</span>

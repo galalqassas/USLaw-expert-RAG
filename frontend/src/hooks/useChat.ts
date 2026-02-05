@@ -133,9 +133,46 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
           const chunk = tokenBuffer;
           tokenBuffer = '';
           lastUpdateTime = now;
+          
           if (chunk && isBound()) {
+            // Split into Content and Reasoning parts
+            const parts = chunk.split('__REASONING__');
+            let contentUpdate = parts[0];
+            let reasoningUpdate = '';
+            
+            for (let i = 1; i < parts.length; i++) {
+                const p = parts[i];
+                const endIdx = p.indexOf('__END__');
+                if (endIdx !== -1) {
+                    const jsonStr = p.slice(0, endIdx);
+                    try {
+                        reasoningUpdate += JSON.parse(jsonStr);
+                    } catch (e) { console.error("Bad reasoning JSON", e); }
+                    contentUpdate += p.slice(endIdx + 7); // 7 is length of __END__
+                }
+            }
+
             setMessages((prev) =>
-              prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+
+                const newData = m.data ? [...m.data] : [];
+                if (reasoningUpdate) {
+                    // Try to append to last item if it's reasoning
+                    const lastIdx = newData.length - 1;
+                    if (lastIdx >= 0 && newData[lastIdx]?.reasoning) {
+                        newData[lastIdx] = { ...newData[lastIdx], reasoning: newData[lastIdx].reasoning + reasoningUpdate };
+                    } else {
+                        newData.push({ reasoning: reasoningUpdate });
+                    }
+                }
+                
+                return { 
+                    ...m, 
+                    content: m.content + contentUpdate,
+                    data: newData.length > 0 ? newData : undefined
+                };
+              })
             );
           }
         }
@@ -165,12 +202,21 @@ export function useChat({ model }: { model?: string } = {}): UseChatReturn {
           tokenBuffer += data;
           flushTokens();
         } else if (type === '2' && isBound()) {
+          // Check for reasoning
+          if (data.reasoning) {
+            tokenBuffer += `__REASONING__${JSON.stringify(data.reasoning)}__END__`;
+            flushTokens();
+            return;
+          }
+
           const sources = Array.isArray(data) ? data : data.sources || [];
           if (data.retrieval_time) {
             retrievalMsRef.current = Math.round(data.retrieval_time * 1000);
             setMetrics({ retrievalTimeMs: retrievalMsRef.current, synthesisTimeMs: 0 });
           }
-          setChunks(mapSources(sources));
+          if (sources.length > 0) {
+            setChunks(mapSources(sources));
+          }
         }
       };
 

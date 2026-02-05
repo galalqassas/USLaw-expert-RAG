@@ -4,6 +4,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  data?: Record<string, unknown>[]; // Vercel AI SDK data parts
   timestamp?: Date;
 }
 

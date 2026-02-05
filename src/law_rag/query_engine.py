@@ -4,6 +4,7 @@ import functools
 import json
 import threading
 import time
+import queue # Added
 from datetime import datetime
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from llama_index.llms.openai import OpenAI
 from llama_index.llms.openai.utils import ALL_AVAILABLE_MODELS, CHAT_MODELS
 
 from law_rag.config import settings
-
+from law_rag.custom_llm import GroqReasoningLLM, set_reasoning_queue
 
 class RAGQueryEngine:
     """RAG query engine for legal document Q&A."""
@@ -85,7 +86,9 @@ class RAGQueryEngine:
 
     def _create_llm_instance(self, model: str) -> OpenAI:
         """Create an OpenAI LLM instance with standard settings."""
-        return OpenAI(
+        # Use GroqReasoningLLM to handle reasoning tokens
+        return GroqReasoningLLM(
+            include_reasoning=True, # Always request reasoning
             model=model,
             api_key=settings.groq.api_key,
             api_base="https://api.groq.com/openai/v1",
@@ -193,12 +196,33 @@ class RAGQueryEngine:
         # Phase 2: Stream synthesis tokens
         synthesizer = self._get_synthesizer(model, streaming=True)
         t2 = time.perf_counter()
-        streaming_response = synthesizer.synthesize(query, nodes=nodes)
+        
+        # Setup reasoning queue context
+        q = queue.Queue()
+        set_reasoning_queue(q)
         
         response_text = ""
-        for token in streaming_response.response_gen:
-            response_text += token
-            yield f"0:{json.dumps(token)}\n"
+        try:
+            streaming_response = synthesizer.synthesize(query, nodes=nodes)
+            
+            for stream_token in streaming_response.response_gen:
+                response_text += stream_token
+                
+                # Check for reasoning tokens that arrived before this text token
+                while not q.empty():
+                    r_tok = q.get()
+                    yield f"2:{json.dumps({'reasoning': r_tok})}\n"
+
+                yield f"0:{json.dumps(stream_token)}\n"
+            
+            # Flush any remaining reasoning tokens
+            while not q.empty():
+                r_tok = q.get()
+                yield f"2:{json.dumps({'reasoning': r_tok})}\n"
+                
+        finally:
+            # Clean up usage
+            set_reasoning_queue(None)
             
         synthesis_time = time.perf_counter() - t2
         total_time = time.perf_counter() - t0

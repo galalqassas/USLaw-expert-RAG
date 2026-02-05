@@ -1,5 +1,5 @@
 import { Message } from '@/types';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { MessageReasoning } from './MessageReasoning';
 import { Response } from './Response';
@@ -20,6 +20,26 @@ export const ChatBubble = memo(function ChatBubble({
   const isUser = message.role === 'user';
   const showReloadButton = !isUser && isLast && onReload;
 
+  const thinkingContent = useMemo(() => {
+    // Check regex first (for models that output <think>)
+    const thinkMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
+    let content = thinkMatch ? thinkMatch[1] : '';
+
+    // Check data stream (for our Groq implementation)
+    if (message.data) {
+      const dataContent = message.data
+        .filter((item) => item?.reasoning)
+        .map((item) => item.reasoning as string)
+        .join('');
+      content += dataContent;
+    }
+    return content || null;
+  }, [message.content, message.data]);
+
+  const mainContent = useMemo(() => {
+    return message.content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+  }, [message.content]);
+
   return (
     <div
       className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
@@ -34,27 +54,17 @@ export const ChatBubble = memo(function ChatBubble({
       >
         {!isUser && (
           <>
-            {(() => {
-              const thinkMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
-              const thinkingContent = thinkMatch ? thinkMatch[1] : null;
-              const mainContent = message.content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
-
-              return (
-                <>
-                  {thinkingContent && (
-                    <MessageReasoning 
-                      isLoading={false}
-                      reasoning={thinkingContent} 
-                    />
-                  )}
-                  {mainContent && (
-                    <div className="prose prose-sm dark:prose-invert max-w-none break-words mt-2">
-                      <Response>{mainContent}</Response>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+            {thinkingContent && (
+              <MessageReasoning 
+                isLoading={isLast && !mainContent} 
+                reasoning={thinkingContent} 
+              />
+            )}
+            {mainContent && (
+              <div className="prose prose-sm dark:prose-invert max-w-none break-words mt-2">
+                <Response>{mainContent}</Response>
+              </div>
+            )}
           </>
         )}
         {isUser && (
