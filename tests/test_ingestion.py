@@ -131,7 +131,6 @@ class TestDocumentIngestionPipeline:
             patch("llama_index.core.readers.SimpleDirectoryReader") as mock_reader,
             patch("law_rag.ingestion.PineconeVectorStore"),
             patch("law_rag.ingestion.VectorStoreIndex") as mock_index,
-            patch("law_rag.ingestion.LlamaSettings"),
         ):
             mock_doc = MagicMock()
             mock_doc.text = "Test content"

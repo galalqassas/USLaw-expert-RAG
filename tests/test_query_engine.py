@@ -12,7 +12,6 @@ def mock_dependencies():
     with (
         patch("law_rag.query_engine.settings") as mock_settings,
         patch("law_rag.query_engine.OpenAI") as mock_openai,
-        patch("law_rag.query_engine.LlamaSettings"),
         patch("law_rag.query_engine.VectorIndexRetriever") as mock_retriever_cls,
         patch("law_rag.query_engine.get_response_synthesizer") as mock_synth,
     ):
@@ -62,7 +61,7 @@ def engine(mock_dependencies, mock_index):
     engine = RAGQueryEngine(index=mock_index)
     # Replace with our controlled mocks
     engine.retriever = mock_dependencies["retriever"]
-    engine.synthesizer = mock_dependencies["synthesizer"]
+    # engine.default_synthesizer is created by __init__ using mocked get_response_synthesizer
     return engine
 
 
@@ -77,9 +76,11 @@ class TestRAGQueryEngine:
         mock_node.text = "Test content"
 
         mock_dependencies["retriever"].retrieve.return_value = [mock_node]
+        # usage via query_cli -> chat -> _get_synthesizer -> default_synthesizer
+        # default_synthesizer is created from the mocked get_response_synthesizer
         mock_dependencies["synthesizer"].synthesize.return_value = "Test response"
 
-        result = engine.query("What is copyright law?")
+        result = engine.query_cli("What is copyright law?")
 
         assert isinstance(result, str)
         mock_dependencies["retriever"].retrieve.assert_called_once()
@@ -132,11 +133,10 @@ class TestRAGQueryEngine:
 
         mock_dependencies["retriever"].retrieve.return_value = [mock_node]
 
-        # Mock streaming synthesizer
+        # Mock streaming synthesizer behavior on the global mock
         mock_streaming_response = MagicMock()
         mock_streaming_response.response_gen = iter(["Hello ", "world"])
-        engine.streaming_synthesizer = MagicMock()
-        engine.streaming_synthesizer.synthesize.return_value = mock_streaming_response
+        mock_dependencies["synthesizer"].synthesize.return_value = mock_streaming_response
 
         tokens = list(engine.stream_chat("test message", history=[]))
 
@@ -157,8 +157,7 @@ class TestRAGQueryEngine:
 
         mock_streaming_response = MagicMock()
         mock_streaming_response.response_gen = iter(["Response"])
-        engine.streaming_synthesizer = MagicMock()
-        engine.streaming_synthesizer.synthesize.return_value = mock_streaming_response
+        mock_dependencies["synthesizer"].synthesize.return_value = mock_streaming_response
 
         history = [
             {"role": "user", "content": "First question"},

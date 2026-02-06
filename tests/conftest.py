@@ -16,9 +16,11 @@ def mock_engine():
 
     # Mock stream_chat to yield tokens
     def mock_stream_chat(msg, hist=None, **kwargs):
+        import json
+        yield f'2:{json.dumps({"sources": [{"file_path": "doc.html", "text": "..."}]})}\n'
         for token in f"Streaming response for: {msg}".split():
-            yield token + " "
-
+            yield f'0:{json.dumps(token + " ")}\n'
+    
     engine.stream_chat.side_effect = mock_stream_chat
     return engine
 

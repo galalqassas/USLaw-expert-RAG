@@ -6,7 +6,6 @@ from typing import Optional
 
 from llama_index.core import (
     Document,
-    Settings as LlamaSettings,
     StorageContext,
     VectorStoreIndex,
 )
@@ -33,7 +32,6 @@ class DocumentIngestionPipeline:
             model_name=settings.embedding.model,
             api_key=settings.groq.google_api_key,
         )
-        LlamaSettings.embed_model = self.embed_model
 
     def _setup_pinecone(self) -> None:
         self.pc = Pinecone(api_key=settings.pinecone.api_key)
@@ -94,16 +92,21 @@ class DocumentIngestionPipeline:
 
     def create_index(self, documents: list[Document]) -> VectorStoreIndex:
         """Create vector index from documents."""
-        LlamaSettings.text_splitter = SentenceSplitter(
+        text_splitter = SentenceSplitter(
             chunk_size=settings.chunking.chunk_size,
             chunk_overlap=settings.chunking.chunk_overlap,
         )
+        
         vector_store = PineconeVectorStore(pinecone_index=self.pinecone_index)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
         print(f"Indexing {len(documents)} documents into Pinecone...")
         index = VectorStoreIndex.from_documents(
-            documents, storage_context=storage_context, show_progress=True
+            documents,
+            storage_context=storage_context,
+            embed_model=self.embed_model,
+            transformations=[text_splitter],
+            show_progress=True
         )
         print("Indexing complete!")
         return index
@@ -111,7 +114,9 @@ class DocumentIngestionPipeline:
     def get_existing_index(self) -> VectorStoreIndex:
         """Connect to existing Pinecone index."""
         vector_store = PineconeVectorStore(pinecone_index=self.pinecone_index)
-        return VectorStoreIndex.from_vector_store(vector_store)
+        return VectorStoreIndex.from_vector_store(
+            vector_store, embed_model=self.embed_model
+        )
 
     def run(self, force_reindex: bool = False) -> VectorStoreIndex:
         """Execute ingestion pipeline."""

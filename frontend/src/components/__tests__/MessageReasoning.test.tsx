@@ -3,7 +3,7 @@ import { MessageReasoning } from '../MessageReasoning';
 
 // Mock the Reasoning components to avoid complex dependency chain
 jest.mock('../elements/reasoning', () => ({
-  Reasoning: ({ children, ...props }: { children: React.ReactNode }) => (
+  Reasoning: ({ children, defaultOpen, isStreaming, ...props }: { children: React.ReactNode, defaultOpen?: boolean, isStreaming?: boolean }) => (
     <div data-testid="message-reasoning" {...props}>{children}</div>
   ),
   ReasoningContent: ({ children }: { children: React.ReactNode }) => (

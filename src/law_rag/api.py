@@ -3,8 +3,9 @@
 import json
 import os
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -44,29 +45,41 @@ class IngestRequest(BaseModel):
     force: bool = Field(False, description="Force re-indexing of all documents even if they already exist")
 
 
-# --- State ---
-
-_engine: RAGQueryEngine | None = None
-
-
-def _get_engine() -> RAGQueryEngine:
-    if _engine is None:
-        raise HTTPException(503, "Engine not initialized")
-    return _engine
-
-
 # --- Lifespan ---
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    global _engine
+async def lifespan(app: FastAPI):
     print("🚀 Initializing RAG Engine...")
-    pipeline = DocumentIngestionPipeline()
-    _engine = RAGQueryEngine(pipeline.run(force_reindex=False))
-    print("✅ Ready")
+    try:
+        pipeline = DocumentIngestionPipeline()
+        # Initialize engine and store in app state
+        app.state.engine = RAGQueryEngine(pipeline.run(force_reindex=False))
+        print("✅ RAG Engine Ready")
+    except Exception as e:
+        print(f"❌ Failed to initialize RAG Engine: {e}")
+        # We don't raise here to allow the app to start, but health check will fail
+        app.state.engine = None
+    
     yield
+    
     print("🛑 Shutdown")
+    app.state.engine = None
+
+
+# --- Dependencies ---
+
+def get_engine(request: Request) -> RAGQueryEngine:
+    """Dependency to get the RAG engine from app state."""
+    engine = getattr(request.app.state, "engine", None)
+    if engine is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+            detail="RAG Engine not initialized or unavailable"
+        )
+    return engine
+
+EngineDep = Annotated[RAGQueryEngine, Depends(get_engine)]
 
 
 # --- App ---
@@ -113,14 +126,15 @@ app.add_middleware(
     description="Checks if the RAG engine is initialized and the API is ready to accept requests.",
     status_code=status.HTTP_200_OK,
 )
-async def health():
+async def health(request: Request):
     """
     Perform a health check.
 
     Returns:
         dict: {"status": "ok"} if successful.
     """
-    _get_engine()
+    if not getattr(request.app.state, "engine", None):
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Engine not ready")
     return {"status": "ok"}
 
 
@@ -131,21 +145,22 @@ async def health():
     summary="Submit a RAG Query",
     description="Submit a question to the RAG system and receive a synthesized answer with sources.",
 )
-async def query(req: QueryRequest):
+async def query(req: QueryRequest, engine: EngineDep):
     """
     Process a user query using the RAG engine.
 
     - **req**: The query request containing the message history.
     """
-    if not req.messages:
-        raise HTTPException(400, "No messages provided")
-
-    result = _get_engine().chat(
-        req.messages[-1].content,
-        [m.model_dump() for m in req.messages[:-1]],
-        model=req.model,
-    )
-    return QueryResponse(answer=result["response"], sources=result["sources"])
+    try:
+        result = engine.chat(
+            req.messages[-1].content,
+            [m.model_dump() for m in req.messages[:-1]],
+            model=req.model,
+        )
+        return QueryResponse(answer=result["response"], sources=result["sources"])
+    except Exception as e:
+        print(f"❌ Query Error: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
 
 @app.post(
@@ -155,18 +170,21 @@ async def query(req: QueryRequest):
     description="Start the background process to ingest and index documents from the source directory.",
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def ingest(req: IngestRequest, bg: BackgroundTasks):
+async def ingest(req: IngestRequest, bg: BackgroundTasks, request: Request):
     """
     Trigger the document ingestion pipeline in the background.
 
     - **force**: If true, re-indexes everything from scratch.
     """
     def task():
-        global _engine
         print(f"🔄 Starting background ingestion (force={req.force})...")
-        pipeline = DocumentIngestionPipeline()
-        _engine = RAGQueryEngine(pipeline.run(force_reindex=req.force))
-        print("✅ Background ingestion complete.")
+        try:
+            pipeline = DocumentIngestionPipeline()
+            # Update the global engine state safely
+            request.app.state.engine = RAGQueryEngine(pipeline.run(force_reindex=req.force))
+            print("✅ Background ingestion complete.")
+        except Exception as e:
+            print(f"❌ Ingestion failed: {e}")
 
     bg.add_task(task)
     return {"message": "Ingestion started", "details": "Processing in background"}
@@ -178,15 +196,12 @@ async def ingest(req: IngestRequest, bg: BackgroundTasks):
     summary="Streaming Chat",
     description="Stream the response token by token using the Vercel AI SDK Data Stream Protocol.",
 )
-async def chat_stream(req: QueryRequest):
+async def chat_stream(req: QueryRequest, engine: EngineDep):
     """
     Streaming chat endpoint.
 
     Returns a stream of text and data events compliant with Vercel AI SDK.
     """
-    if not req.messages:
-        raise HTTPException(400, "No messages provided")
-
     last_msg = req.messages[-1].content
     history = [m.model_dump() for m in req.messages[:-1]]
 
@@ -194,7 +209,7 @@ async def chat_stream(req: QueryRequest):
         try:
             print(f"👉 [Backend] Received model from request: '{req.model}'")
             print(f"👉 [Backend] Starting stream for query: {last_msg[:50]}... (Using Model: {req.model or settings.groq.model})")
-            yield from _get_engine().stream_chat(last_msg, history, model=req.model)
+            yield from engine.stream_chat(last_msg, history, model=req.model)
             print("✅ Stream completed successfully")
         except Exception as e:
             print(f"❌ Error during streaming: {e}")

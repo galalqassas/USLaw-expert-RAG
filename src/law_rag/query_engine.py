@@ -4,15 +4,17 @@ import functools
 import json
 import threading
 import time
-import queue # Added
+import queue
 from datetime import datetime
 from pathlib import Path
+from typing import Generator
 
-from llama_index.core import Settings as LlamaSettings, VectorStoreIndex, PromptTemplate
+from llama_index.core import VectorStoreIndex, PromptTemplate
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.openai.utils import ALL_AVAILABLE_MODELS, CHAT_MODELS
+from llama_index.core.schema import NodeWithScore
 
 from law_rag.config import settings
 from law_rag.custom_llm import GroqReasoningLLM, set_reasoning_queue
@@ -25,7 +27,9 @@ class RAGQueryEngine:
         self.index = index
         self.logs_dir = settings.BASE_DIR / "logs"
         self._enable_file_logging = self._init_logs_dir()
-        self._setup_components()
+        
+        # Initialize default components
+        self._setup_default_components()
 
     def _init_logs_dir(self) -> bool:
         try:
@@ -35,41 +39,37 @@ class RAGQueryEngine:
             print("⚠️ Read-only filesystem. File logging disabled.")
             return False
 
-
-    def _setup_components(self) -> None:
-        # Register Groq model as valid OpenAI model
+    def _setup_default_components(self) -> None:
+        """Initialize default LLM and Retriever."""
+        # Register Groq model keys to avoid unwanted validation errors from LlamaIndex/OpenAI
         ALL_AVAILABLE_MODELS[settings.groq.model] = settings.groq.context_window
         CHAT_MODELS[settings.groq.model] = settings.groq.context_window
 
-        self.llm = self._create_llm_instance(settings.groq.model)
-        LlamaSettings.llm = self.llm
-
+        self.default_llm = self._create_llm_instance(settings.groq.model)
+        
         self.retriever = VectorIndexRetriever(
             index=self.index, similarity_top_k=settings.similarity_top_k
         )
-        self.synthesizer = get_response_synthesizer(
-            llm=self.llm,
+        # Default synthesizer (non-streaming)
+        self.default_synthesizer = get_response_synthesizer(
+            llm=self.default_llm,
             response_mode=settings.response_mode,
-            text_qa_template=PromptTemplate(settings.qa_template),
-        )
-        self.streaming_synthesizer = get_response_synthesizer(
-            llm=self.llm,
-            response_mode=settings.response_mode,
-            streaming=True,
             text_qa_template=PromptTemplate(settings.qa_template),
         )
 
     def _get_synthesizer(self, model: str | None = None, streaming: bool = False):
-        print(f"🔍 [QueryEngine] _get_synthesizer called with model='{model}', default='{settings.groq.model}'")
-        if not model or model == settings.groq.model:
-            print("   → Using default synthesizer")
-            return self.streaming_synthesizer if streaming else self.synthesizer
-
-        print(f"   → Creating dynamic synthesizer for model: {model}")
-        ALL_AVAILABLE_MODELS.setdefault(model, settings.groq.context_window)
-        CHAT_MODELS.setdefault(model, settings.groq.context_window)
+        """Get or create a synthesizer for the specific model and mode."""
+        target_model = model or settings.groq.model
         
-        return self._get_cached_synthesizer(model, streaming)
+        # If default model and not streaming, return pre-built
+        if target_model == settings.groq.model and not streaming:
+            return self.default_synthesizer
+
+        if target_model != settings.groq.model:
+            ALL_AVAILABLE_MODELS.setdefault(target_model, settings.groq.context_window)
+            CHAT_MODELS.setdefault(target_model, settings.groq.context_window)
+        
+        return self._get_cached_synthesizer(target_model, streaming)
 
     @functools.lru_cache(maxsize=16)
     def _get_cached_synthesizer(self, model: str, streaming: bool):
@@ -86,9 +86,8 @@ class RAGQueryEngine:
 
     def _create_llm_instance(self, model: str) -> OpenAI:
         """Create an OpenAI LLM instance with standard settings."""
-        # Use GroqReasoningLLM to handle reasoning tokens
         return GroqReasoningLLM(
-            include_reasoning=True, # Always request reasoning
+            include_reasoning=True,
             model=model,
             api_key=settings.groq.api_key,
             api_base="https://api.groq.com/openai/v1",
@@ -106,7 +105,7 @@ class RAGQueryEngine:
         )
         return f"Given the following conversation history:\n{history_text}\n\nNow answer: {message}"
 
-    def _format_chunks(self, nodes: list) -> list[dict]:
+    def _format_chunks(self, nodes: list[NodeWithScore]) -> list[dict]:
         """Format retrieved nodes into serializable chunks."""
         result = []
         for i, node in enumerate(nodes, 1):
@@ -129,35 +128,47 @@ class RAGQueryEngine:
             )
         return result
 
-    def _log_query(
+    def _log_query_async(
         self, question: str, chunks: list[dict], response: str, timing: dict, model: str
     ) -> None:
+        """Run logging in a background thread."""
         if not self._enable_file_logging:
             return
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = self.logs_dir / f"query_{ts}.json"
-        data = {
-            "timestamp": datetime.now().isoformat(),
-            "question": question,
-            "model": model,
-            "timing_seconds": timing,
-            "retrieved_chunks": chunks,
-            "response": response,
-        }
-        with open(log_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"\n📁 Query logged to: {log_file}")
+            
+        def _log():
+            try:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                log_file = self.logs_dir / f"query_{ts}.json"
+                data = {
+                    "timestamp": datetime.now().isoformat(),
+                    "question": question,
+                    "model": model,
+                    "timing_seconds": timing,
+                    "retrieved_chunks": chunks,
+                    "response": response,
+                }
+                with open(log_file, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                print(f"📁 Query logged to: {log_file}")
+            except Exception as e:
+                print(f"Failed to write log: {e}")
+
+        threading.Thread(target=_log, daemon=True).start()
+
+    def _retrieve(self, message: str, history: list[dict]) -> tuple[str, list[NodeWithScore], float]:
+        """Execute common retrieval step."""
+        t0 = time.perf_counter()
+        query = self._augment_query(message, history)
+        nodes = self.retriever.retrieve(query)
+        retrieval_time = time.perf_counter() - t0
+        return query, nodes, retrieval_time
 
     # --- Public Methods ---
 
     def chat(self, message: str, history: list[dict], model: str | None = None) -> dict:
         """Chat with the RAG system (non-streaming)."""
         t0 = time.perf_counter()
-        query = self._augment_query(message, history)
-        
-        t1 = time.perf_counter()
-        nodes = self.retriever.retrieve(query)
-        retrieval_time = time.perf_counter() - t1
+        query, nodes, retrieval_time = self._retrieve(message, history)
         
         synthesizer = self._get_synthesizer(model, streaming=False)
         t2 = time.perf_counter()
@@ -168,28 +179,20 @@ class RAGQueryEngine:
         response_text = str(response)
         chunks = self._format_chunks(nodes)
         
-        threading.Thread(
-            target=self._log_query,
-            args=(message, chunks, response_text, {
-                "retrieval": round(retrieval_time, 4),
-                "synthesis": round(synthesis_time, 4),
-                "total": round(total_time, 4),
-            }, model or settings.groq.model),
-            daemon=True,
-        ).start()
+        self._log_query_async(message, chunks, response_text, {
+            "retrieval": round(retrieval_time, 4),
+            "synthesis": round(synthesis_time, 4),
+            "total": round(total_time, 4),
+        }, model or settings.groq.model)
 
         return {"response": response_text, "sources": chunks}
 
-    def stream_chat(self, message: str, history: list[dict], model: str | None = None):
+    def stream_chat(self, message: str, history: list[dict], model: str | None = None) -> Generator[str, None, None]:
         """Stream chat response: sources first, then text tokens."""
         t0 = time.perf_counter()
-        query = self._augment_query(message, history)
+        query, nodes, retrieval_time = self._retrieve(message, history)
 
-        # Phase 1: Retrieve and emit sources
-        t1 = time.perf_counter()
-        nodes = self.retriever.retrieve(query)
-        retrieval_time = time.perf_counter() - t1
-
+        # Phase 1: Emit sources
         chunks = self._format_chunks(nodes)
         yield f"2:{json.dumps({'sources': chunks, 'retrieval_time': retrieval_time})}\n"
 
@@ -221,63 +224,27 @@ class RAGQueryEngine:
                 yield f"2:{json.dumps({'reasoning': r_tok})}\n"
                 
         finally:
-            # Clean up usage
             set_reasoning_queue(None)
             
         synthesis_time = time.perf_counter() - t2
         total_time = time.perf_counter() - t0
         
-        threading.Thread(
-            target=self._log_query,
-            args=(message, chunks, response_text, {
-                "retrieval": round(retrieval_time, 4),
-                "synthesis": round(synthesis_time, 4),
-                "total": round(total_time, 4),
-            }, model or settings.groq.model),
-            daemon=True,
-        ).start()
-
-    def query(self, question: str, verbose: bool = False) -> str:
-        """Query the RAG system with timing and logging (CLI use)."""
-        t0 = time.perf_counter()
-
-        # Retrieval
-        t1 = time.perf_counter()
-        nodes = self.retriever.retrieve(question)
-        retrieval_time = time.perf_counter() - t1
-        chunks = self._format_chunks(nodes)
-
-        # Display chunks
-        print(f"\n{'=' * 60}\n📚 RETRIEVED CHUNKS ({retrieval_time:.2f}s)\n{'=' * 60}")
-        for c in chunks:
-            score = f"Score: {c['score']:.4f}" if c["score"] else ""
-            print(
-                f"\n[{c['rank']}] {score}\n    Source: {c['file_path']}\n    Preview: {c['text'][:150]}..."
-            )
-        print("=" * 60)
-
-        # Synthesis
-        t2 = time.perf_counter()
-        response = self.synthesizer.synthesize(question, nodes=nodes)
-        synthesis_time = time.perf_counter() - t2
-        total_time = time.perf_counter() - t0
-
-        print(
-            f"\n⏱️  Retrieval {retrieval_time:.2f}s | Synthesis {synthesis_time:.2f}s | Total {total_time:.2f}s"
-        )
-
-        response_text = str(response)
-        timing = {
+        self._log_query_async(message, chunks, response_text, {
             "retrieval": round(retrieval_time, 4),
             "synthesis": round(synthesis_time, 4),
             "total": round(total_time, 4),
-        }
-        threading.Thread(
-            target=self._log_query,
-            args=(question, chunks, response_text, timing, settings.groq.model),
-            daemon=True,
-        ).start()
+        }, model or settings.groq.model)
 
+    def query_cli(self, question: str, verbose: bool = False) -> str:
+        """Query the RAG system (CLI wrapper for manual testing)."""
+        result = self.chat(question, [])
+        chunks = result["sources"]
+        print(f"\n{'=' * 60}\n📚 RETRIEVED CHUNKS\n{'=' * 60}")
+        for c in chunks:
+            score = f"Score: {c['score']:.4f}" if c["score"] is not None else ""
+            print(f"\n[{c['rank']}] {score}\n    Source: {c['file_path']}\n    Preview: {c['text'][:150]}...")
+        print("=" * 60)
+        
         if verbose:
             print("\n--- Response ---")
-        return response_text
+        return result["response"]
