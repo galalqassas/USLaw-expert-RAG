@@ -63,12 +63,13 @@ class EmbeddingConfig:
         default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "ollama")
     )
 
-    model: str = "models/text-embedding-004"  # Default for Gemini
+    model: str = "models/gemini-embedding-001"  # Default for Gemini
     # For Ollama: "embeddinggemma"
     base_url: str = field(
         default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     )
     embed_batch_size: int = 10
+    dimension: int = 768  # Output dimension (768 for text-embedding-004 compatibility)
 
 
 @dataclass(frozen=True, slots=True)
