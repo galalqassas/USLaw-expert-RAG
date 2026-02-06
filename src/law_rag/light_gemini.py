@@ -13,11 +13,13 @@ class LightweightGeminiEmbedding(BaseEmbedding):
     _api_key: str = PrivateAttr()
     _model_name: str = PrivateAttr()
     _api_base: str = PrivateAttr()
+    _output_dimensionality: int | None = PrivateAttr()
 
     def __init__(
         self,
-        model_name: str = "models/text-embedding-004",
+        model_name: str = "models/gemini-embedding-001",
         api_key: str | None = None,
+        output_dimensionality: int | None = None,
         callback_manager: CallbackManager | None = None,
         **kwargs: Any,
     ) -> None:
@@ -28,6 +30,7 @@ class LightweightGeminiEmbedding(BaseEmbedding):
         )
         self._api_key = api_key or os.getenv("GOOGLE_API_KEY", "")
         self._model_name = model_name
+        self._output_dimensionality = output_dimensionality
         self._api_base = "https://generativelanguage.googleapis.com/v1beta"
 
     def _get_query_embedding(self, query: str) -> List[float]:
@@ -51,6 +54,9 @@ class LightweightGeminiEmbedding(BaseEmbedding):
         }
         if task_type:
             json_data["taskType"] = task_type
+            
+        if self._output_dimensionality:
+            json_data["outputDimensionality"] = self._output_dimensionality
 
         with httpx.Client() as client:
             resp = client.post(url, json=json_data, timeout=30.0)
@@ -69,6 +75,9 @@ class LightweightGeminiEmbedding(BaseEmbedding):
         }
         if task_type:
             json_data["taskType"] = task_type
+            
+        if self._output_dimensionality:
+            json_data["outputDimensionality"] = self._output_dimensionality
 
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, json=json_data, timeout=30.0)

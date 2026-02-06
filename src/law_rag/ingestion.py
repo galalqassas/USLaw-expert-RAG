@@ -31,6 +31,7 @@ class DocumentIngestionPipeline:
         self.embed_model = LightweightGeminiEmbedding(
             model_name=settings.embedding.model,
             api_key=settings.groq.google_api_key,
+            output_dimensionality=settings.embedding.dimension,
         )
 
     def _setup_pinecone(self) -> None:
