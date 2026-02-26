@@ -1,7 +1,6 @@
-// Mock streamdown BEFORE any imports
-jest.mock('streamdown', () => ({
-  __esModule: true,
-  Streamdown: ({ children }: { children: React.ReactNode }) => <div data-testid="markdown">{children}</div>,
+// Mock Response component to avoid complex dependency chain (including streamdown)
+jest.mock('../Response', () => ({
+  Response: ({ children }: { children: React.ReactNode }) => <div data-testid="markdown">{children}</div>,
 }));
 
 // Mock MessageReasoning to avoid complex dependency chain
@@ -15,6 +14,8 @@ jest.mock('../MessageReasoning', () => ({
 // Mock lucide-react
 jest.mock('lucide-react', () => ({
   RotateCcw: () => <svg data-testid="icon-rotate-ccw" />,
+  Download: () => <svg data-testid="icon-download" />,
+  Loader2: () => <svg data-testid="icon-loader2" />,
 }));
 
 import React from 'react';

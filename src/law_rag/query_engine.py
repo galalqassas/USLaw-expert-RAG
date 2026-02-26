@@ -149,7 +149,7 @@ class RAGQueryEngine:
                 }
                 with open(log_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
-                print(f"📁 Query logged to: {log_file}")
+                print(f"Query logged to: {log_file}")
             except Exception as e:
                 print(f"Failed to write log: {e}")
 

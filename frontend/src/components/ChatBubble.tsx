@@ -1,6 +1,6 @@
 import { Message } from '@/types';
-import { memo, useMemo } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
+import { RotateCcw, Download, Loader2 } from 'lucide-react';
 import { MessageReasoning } from './MessageReasoning';
 import { Response } from './Response';
 
@@ -19,6 +19,7 @@ export const ChatBubble = memo(function ChatBubble({
 }: ChatBubbleProps) {
   const isUser = message.role === 'user';
   const showReloadButton = !isUser && isLast && onReload;
+  const [isExporting, setIsExporting] = useState(false);
 
   const thinkingContent = useMemo(() => {
     // Check regex first (for models that output <think>)
@@ -39,6 +40,37 @@ export const ChatBubble = memo(function ChatBubble({
   const mainContent = useMemo(() => {
     return message.content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
   }, [message.content]);
+
+  const handleExportPdf = async () => {
+    if (!mainContent) return;
+    setIsExporting(true);
+    try {
+      const response = await fetch('/api/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: mainContent })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to export PDF');
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-export-${new Date().getTime()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div
@@ -72,15 +104,30 @@ export const ChatBubble = memo(function ChatBubble({
         )}
       </div>
 
-      {showReloadButton && (
-        <button
-          onClick={onReload}
-          className="ml-2 p-1.5 rounded-full text-secondary-text hover:text-primary hover:bg-primary/10 transition-colors self-end"
-          title="Regenerate response"
-          aria-label="Regenerate response"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
+      {!isUser && (
+        <div className="flex flex-col gap-1 ml-2 self-end">
+          {showReloadButton && (
+            <button
+              onClick={onReload}
+              className="p-1.5 rounded-full text-secondary-text hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Regenerate response"
+              aria-label="Regenerate response"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
+          {mainContent && (
+            <button
+              onClick={handleExportPdf}
+              disabled={isExporting}
+              title="Download as PDF"
+              aria-label="Download as PDF"
+              className="p-1.5 rounded-full text-secondary-text hover:text-primary hover:bg-primary/10 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
