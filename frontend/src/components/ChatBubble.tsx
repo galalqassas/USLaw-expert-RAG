@@ -45,32 +45,39 @@ export const ChatBubble = memo(function ChatBubble({
     if (!mainContent) return;
     setIsExporting(true);
     try {
+      // Auto-extract title: first heading or first non-empty line
+      const headingMatch = mainContent.match(/^#{1,6}\s+(.+)$/m);
+      const firstLine = mainContent.split('\n').find(l => l.trim().length > 0) ?? 'Chat Export';
+      const title = (headingMatch ? headingMatch[1] : firstLine).replace(/[*_`#]/g, '').trim().substring(0, 80);
+
       const response = await fetch('/api/export-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown: mainContent })
+        body: JSON.stringify({ markdown: mainContent, title }),
       });
 
       if (!response.ok) {
-        console.error('Failed to export PDF');
+        console.error('Failed to generate PDF');
         return;
       }
 
+      // Direct download — no popup, no print dialog
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `chat-export-${new Date().getTime()}.pdf`;
+      a.download = `${title}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error downloading PDF:', error);
+      console.error('Error generating PDF:', error);
     } finally {
       setIsExporting(false);
     }
   };
+
 
   return (
     <div
