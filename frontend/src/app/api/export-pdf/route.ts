@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import MarkdownIt from 'markdown-it';
 // @ts-expect-error - @iktakahiro/markdown-it-katex lacks type definitions
 import mk from '@iktakahiro/markdown-it-katex';
@@ -71,10 +72,13 @@ export async function POST(req: Request) {
 </body>
 </html>`;
 
-    // Launch Puppeteer headless browser
+    // Launch Puppeteer with a serverless-compatible Chromium build.
+    // @sparticuz/chromium provides a stripped-down Chromium binary that fits within
+    // Vercel's 50MB function limit and works in its sandboxed environment.
     const browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
     
     const page = await browser.newPage();

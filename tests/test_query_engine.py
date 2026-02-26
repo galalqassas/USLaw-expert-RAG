@@ -1,5 +1,6 @@
 """Tests for the RAG query engine with mocked external services."""
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,7 @@ def mock_dependencies():
     with (
         patch("law_rag.query_engine.settings") as mock_settings,
         patch("law_rag.query_engine.OpenAI") as mock_openai,
+        patch("law_rag.query_engine.GroqReasoningLLM") as mock_groq_llm,
         patch("law_rag.query_engine.VectorIndexRetriever") as mock_retriever_cls,
         patch("law_rag.query_engine.get_response_synthesizer") as mock_synth,
     ):
@@ -29,6 +31,7 @@ def mock_dependencies():
         mock_settings.BASE_DIR = Path(".")
         mock_settings.validate = MagicMock()
 
+        mock_groq_llm.return_value = MagicMock()
         mock_openai.return_value = MagicMock()
 
         # Create mock retriever and synthesizer
@@ -40,6 +43,7 @@ def mock_dependencies():
         yield {
             "settings": mock_settings,
             "openai": mock_openai,
+            "groq_llm": mock_groq_llm,
             "retriever": mock_retriever,
             "synthesizer": mock_synthesizer,
         }
@@ -124,6 +128,21 @@ class TestRAGQueryEngine:
         call_args = mock_dependencies["retriever"].retrieve.call_args[0][0]
         assert "conversation history" in call_args.lower()
 
+    def test_chat_with_custom_model(self, engine, mock_dependencies):
+        """Test chat passes model parameter to synthesizer creation."""
+        mock_node = MagicMock()
+        mock_node.score = 0.85
+        mock_node.metadata = {"file_path": "test.html"}
+        mock_node.text = "Content"
+
+        mock_dependencies["retriever"].retrieve.return_value = [mock_node]
+        mock_dependencies["synthesizer"].synthesize.return_value = "Response"
+
+        # Model is different from default, so _get_synthesizer will call lru_cache path
+        with patch.object(engine, "_get_synthesizer", wraps=engine._get_synthesizer) as mock_get_synth:
+            engine.chat("Test question", history=[], model="openai/custom-model")
+            mock_get_synth.assert_called_once_with("openai/custom-model", streaming=False)
+
     def test_stream_chat_yields_tokens(self, engine, mock_dependencies):
         """Test stream_chat yields formatted stream events."""
         mock_node = MagicMock()
@@ -170,6 +189,123 @@ class TestRAGQueryEngine:
         call_args = mock_dependencies["retriever"].retrieve.call_args[0][0]
         assert "conversation history" in call_args.lower()
 
+    def test_stream_chat_sources_contain_retrieval_time(self, engine, mock_dependencies):
+        """Test that the first stream event includes retrieval_time."""
+        mock_node = MagicMock()
+        mock_node.score = 0.8
+        mock_node.metadata = {"file_path": "test.html"}
+        mock_node.text = "Content"
+
+        mock_dependencies["retriever"].retrieve.return_value = [mock_node]
+
+        mock_streaming_response = MagicMock()
+        mock_streaming_response.response_gen = iter(["Token"])
+        mock_dependencies["synthesizer"].synthesize.return_value = mock_streaming_response
+
+        tokens = list(engine.stream_chat("test", history=[]))
+        sources_payload = json.loads(tokens[0][2:])
+
+        assert "retrieval_time" in sources_payload
+        assert isinstance(sources_payload["retrieval_time"], float)
+
+    def test_stream_chat_with_custom_model(self, engine, mock_dependencies):
+        """Test stream_chat uses the correct synthesizer for a custom model."""
+        mock_node = MagicMock()
+        mock_node.score = 0.8
+        mock_node.metadata = {"file_path": "test.html"}
+        mock_node.text = "Content"
+
+        mock_dependencies["retriever"].retrieve.return_value = [mock_node]
+
+        mock_streaming_response = MagicMock()
+        mock_streaming_response.response_gen = iter(["Token"])
+        mock_dependencies["synthesizer"].synthesize.return_value = mock_streaming_response
+
+        with patch.object(engine, "_get_synthesizer", wraps=engine._get_synthesizer) as mock_get_synth:
+            list(engine.stream_chat("Test", history=[], model="openai/fast-model"))
+            mock_get_synth.assert_called_once_with("openai/fast-model", streaming=True)
+
+    def test_stream_chat_reasoning_tokens_yielded(self, engine, mock_dependencies):
+        """Test that reasoning tokens from the queue are emitted as 2: events."""
+
+        mock_node = MagicMock()
+        mock_node.score = 0.85
+        mock_node.metadata = {"file_path": "test.html"}
+        mock_node.text = "Content"
+
+        mock_dependencies["retriever"].retrieve.return_value = [mock_node]
+
+        # Patch set_reasoning_queue so we can inject reasoning into it
+        captured_queue = None
+
+        def capture_queue(q):
+            nonlocal captured_queue
+            captured_queue = q
+
+        def fake_stream_response():
+            # Simulate: reasoning arrives before a text token
+            if captured_queue is not None:
+                captured_queue.put("I am thinking...")
+            yield "Answer"
+
+        mock_streaming_response = MagicMock()
+        mock_streaming_response.response_gen = fake_stream_response()
+        mock_dependencies["synthesizer"].synthesize.return_value = mock_streaming_response
+
+        with patch("law_rag.query_engine.set_reasoning_queue", side_effect=capture_queue):
+            tokens = list(engine.stream_chat("test", history=[]))
+
+        # Should have: sources (2:), reasoning (2:), text token (0:)
+        has_reasoning = any(
+            '"reasoning"' in t and t.startswith("2:") for t in tokens
+        )
+        assert has_reasoning, f"No reasoning event found in: {tokens}"
+
+    def test_stream_chat_clears_queue_on_finish(self, engine, mock_dependencies):
+        """Test that the reasoning queue is cleared (set to None) after streaming."""
+
+        mock_node = MagicMock()
+        mock_node.score = 0.8
+        mock_node.metadata = {"file_path": "test.html"}
+        mock_node.text = "Content"
+
+        mock_dependencies["retriever"].retrieve.return_value = [mock_node]
+
+        mock_streaming_response = MagicMock()
+        mock_streaming_response.response_gen = iter(["Done"])
+        mock_dependencies["synthesizer"].synthesize.return_value = mock_streaming_response
+
+        with patch("law_rag.query_engine.set_reasoning_queue") as mock_set_q:
+            list(engine.stream_chat("test", history=[]))
+            # Last call should be set_reasoning_queue(None) via finally block
+            last_call = mock_set_q.call_args_list[-1]
+            assert last_call[0][0] is None
+
+
+class TestGetSynthesizer:
+    """Tests for the _get_synthesizer caching logic."""
+
+    def test_default_model_no_streaming_returns_prebuilt(self, engine, mock_dependencies):
+        """Default model + non-streaming returns the pre-built default_synthesizer."""
+        result = engine._get_synthesizer(model=None, streaming=False)
+        assert result is engine.default_synthesizer
+
+    def test_different_model_creates_new_synthesizer(self, engine, mock_dependencies):
+        """Non-default model triggers cached synthesizer creation."""
+        with patch.object(engine, "_get_cached_synthesizer") as mock_cached:
+            mock_cached.return_value = MagicMock()
+            engine._get_synthesizer(model="openai/other-model", streaming=False)
+            mock_cached.assert_called_once_with("openai/other-model", False)
+
+    def test_default_model_streaming_creates_new_synthesizer(self, engine, mock_dependencies):
+        """Default model + streaming=True uses the cached path, not the pre-built one."""
+        with patch.object(engine, "_get_cached_synthesizer") as mock_cached:
+            mock_cached.return_value = MagicMock()
+            engine._get_synthesizer(model=None, streaming=True)
+            mock_cached.assert_called_once_with(
+                mock_dependencies["settings"].groq.model, True
+            )
+
 
 class TestAugmentQuery:
     """Tests for the _augment_query helper method."""
@@ -190,6 +326,12 @@ class TestAugmentQuery:
         assert "First question" in result
         assert "First answer" in result
         assert "Follow-up" in result
+
+    def test_augment_query_formats_roles_as_uppercase(self, engine):
+        """Test that role names appear in uppercase in augmented query."""
+        history = [{"role": "user", "content": "Hello"}]
+        result = engine._augment_query("Next", history)
+        assert "USER: Hello" in result
 
 
 class TestFormatChunks:
@@ -248,6 +390,21 @@ class TestFormatChunks:
         assert result[1]["rank"] == 2
         assert result[2]["rank"] == 3
 
+    def test_format_chunks_score_is_float(self, engine):
+        """Test that score is always converted to float."""
+        mock_node = MagicMock()
+        mock_node.score = 0.95
+        mock_node.metadata = {"file_path": "test.html"}
+        mock_node.text = "Content"
+
+        result = engine._format_chunks([mock_node])
+        assert isinstance(result[0]["score"], float)
+
+    def test_format_chunks_empty_list(self, engine):
+        """Test formatting an empty node list."""
+        result = engine._format_chunks([])
+        assert result == []
+
 
 class TestInitialization:
     """Tests for RAGQueryEngine initialization."""
@@ -267,3 +424,18 @@ class TestInitialization:
 
             engine = RAGQueryEngine(index=mock_index)
             assert engine._enable_file_logging is True
+
+    def test_validate_is_called_on_init(self, mock_dependencies, mock_index):
+        """Test that settings.validate() is called during init."""
+        from law_rag.query_engine import RAGQueryEngine
+
+        RAGQueryEngine(index=mock_index)
+        mock_dependencies["settings"].validate.assert_called_once()
+
+    def test_groq_llm_used_by_default(self, mock_dependencies, mock_index):
+        """Test that GroqReasoningLLM is used to create the default LLM."""
+        from law_rag.query_engine import RAGQueryEngine
+
+        RAGQueryEngine(index=mock_index)
+        # GroqReasoningLLM should be instantiated for the default model
+        mock_dependencies["groq_llm"].assert_called()
